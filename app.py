@@ -30,6 +30,8 @@ for i in range(len(posList)):
         posList[i] = (*posList[i], False, 'poly', [])
     elif len(posList[i]) == 3:
         posList[i] = (*posList[i], 'poly', [])
+    elif len(posList[i]) == 4:
+        posList[i] = (*posList[i], posList[i][3])  # Correct format for existing entries
 
 # Counter for the number of parking spaces
 space_counter = len(posList)
@@ -53,28 +55,21 @@ def checkSpaces(img, imgThres):
     spaces = 0
     reserved_spaces = 0
     for i, pos in enumerate(posList):
-        x, y, reserved, shape, points = pos
+        x, y, reserved, shape, points, size = pos
+        w, h = size
 
         if shape == 'rect':
-            w, h = 107, 48
             imgCrop = imgThres[y:y + h, x:x + w]
             count = cv2.countNonZero(imgCrop)
         elif shape == 'portrait':
-            w, h = 48, 107
             imgCrop = imgThres[y:y + h, x:x + w]
             count = cv2.countNonZero(imgCrop)
         else:  # 'poly'
-            if points:  # Ensure points are not empty
-                mask = np.zeros(imgThres.shape, dtype=np.uint8)
-                points_np = np.array(points, dtype=np.int32)
-                if points_np.shape[0] > 0:
-                    cv2.fillPoly(mask, [points_np], 255)
-                    imgCrop = cv2.bitwise_and(imgThres, mask)
-                    count = cv2.countNonZero(imgCrop)
-                else:
-                    count = 0
-            else:
-                count = 0
+            mask = np.zeros(imgThres.shape, dtype=np.uint8)
+            points_np = np.array(points, dtype=np.int32)
+            cv2.fillPoly(mask, [points_np], 255)
+            imgCrop = cv2.bitwise_and(imgThres, mask)
+            count = cv2.countNonZero(imgCrop)
 
         if reserved:
             color = (0, 255, 255)  # Yellow for reserved
@@ -88,25 +83,25 @@ def checkSpaces(img, imgThres):
             color = (0, 0, 200)
             thickness = 2
 
-        # Draw polygon with space number
+        # Draw shapes and text with background
         if shape == 'rect':
-            cv2.rectangle(img, (x, y), (x + 107, y + 48), color, thickness)
-            cv2.putText(img, f'Space {i+1}', (x + 10, y + 25), cv2.FONT_HERSHEY_PLAIN, 1, color, 2)
+            cv2.rectangle(img, (x, y), (x + w, y + h), color, thickness)
+            cv2.putText(img, f'Space {i+1}', (x + 10, y + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
         elif shape == 'portrait':
-            cv2.rectangle(img, (x, y), (x + 48, y + 107), color, thickness)
-            cv2.putText(img, f'Space {i+1}', (x + 10, y + 25), cv2.FONT_HERSHEY_PLAIN, 1, color, 2)
+            cv2.rectangle(img, (x, y), (x + w, y + h), color, thickness)
+            cv2.putText(img, f'Space {i+1}', (x + 10, y + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
         else:  # 'poly'
             if points:  # Ensure points are not empty
                 points_np = np.array(points, dtype=np.int32)
-                if points_np.shape[0] > 0:
-                    cv2.polylines(img, [points_np], isClosed=True, color=color, thickness=thickness)
-                    if points[0]:  # Ensure at least one point exists
-                        cv2.putText(img, f'Space {i+1}', (points[0][0] + 10, points[0][1] + 25), cv2.FONT_HERSHEY_PLAIN, 1, color, 2)
-                        cv2.putText(img, str(count), (points[0][0], points[0][1] - 6), cv2.FONT_HERSHEY_PLAIN, 1, color, 2)
+                cv2.polylines(img, [points_np], isClosed=True, color=color, thickness=thickness)
+                if points[0]:  # Ensure at least one point exists
+                    cv2.putText(img, f'Space {i+1}', (points[0][0] + 10, points[0][1] + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
+                    cv2.putText(img, str(count), (points[0][0], points[0][1] - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
 
     free_spaces = spaces
-    cv2.putText(img, f'Free: {spaces}/{len(posList)}', (50, 60), cv2.FONT_HERSHEY_PLAIN, 1, (0, 200, 0), 2)
-    cv2.putText(img, f'Reserved: {reserved_spaces}', (50, 110), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 255), 2)
+    cv2.putText(img, f'Free: {spaces}/{len(posList)}', (50, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 200, 0), 1, lineType=cv2.LINE_AA)
+    cv2.putText(img, f'Reserved: {reserved_spaces}', (50, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, lineType=cv2.LINE_AA)
+
 
 # Monitor changes to the parking file using watchdog
 class ParkingFileEventHandler(FileSystemEventHandler):
@@ -121,44 +116,53 @@ observer.schedule(event_handler, path=os.path.dirname(os.path.abspath(parking_fi
 observer.start()
 
 # Initialize video captures for multiple feeds
-cap1 = cv2.VideoCapture('carPark.mp4')
+cap1 = cv2.VideoCapture('vid.mp4')
 cap2 = cv2.VideoCapture('vid.mp4')  # Additional video source
 
-# Generator function to generate frames for Flask
 def gen_frames(video_source):
+    prev_frame_time = 0
     while True:
         success, frame = video_source.read()
         if not success:
             break
-        else:
-            # Preprocess the frame
-            imgGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            imgBlur = cv2.GaussianBlur(imgGray, (3, 3), 1)
-            val1 = cv2.getTrackbarPos("Val1", "Vals")
-            val2 = cv2.getTrackbarPos("Val2", "Vals")
-            val3 = cv2.getTrackbarPos("Val3", "Vals")
-            if val1 % 2 == 0: val1 += 1
-            if val3 % 2 == 0: val3 += 1
-            imgThres = cv2.adaptiveThreshold(imgBlur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, val1, val2)
-            imgThres = cv2.medianBlur(imgThres, val3)
-            kernel = np.ones((3, 3), np.uint8)
-            imgThres = cv2.dilate(imgThres, kernel, iterations=1)
 
-            # Check for free spaces and draw rectangles
-            checkSpaces(frame, imgThres)
+        # Preprocess the frame
+        imgGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        imgBlur = cv2.GaussianBlur(imgGray, (3, 3), 1)
+        val1 = cv2.getTrackbarPos("Val1", "Vals")
+        val2 = cv2.getTrackbarPos("Val2", "Vals")
+        val3 = cv2.getTrackbarPos("Val3", "Vals")
+        if val1 % 2 == 0: val1 += 1
+        if val3 % 2 == 0: val3 += 1
+        imgThres = cv2.adaptiveThreshold(imgBlur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, val1, val2)
+        imgThres = cv2.medianBlur(imgThres, val3)
+        kernel = np.ones((3, 3), np.uint8)
+        imgThres = cv2.dilate(imgThres, kernel, iterations=1)
 
-            # Encode image as jpg format
-            ret, buffer = cv2.imencode('.jpg', frame)
-            frame = buffer.tobytes()
-            
-            # Yielding current state of posList along with frame
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n' + pickle.dumps(posList) + b'\r\n')
+        # Check for free spaces and draw rectangles
+        checkSpaces(frame, imgThres)
+
+        # Encode image as jpg format
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+
+        # Calculate delay to match the video frame rate
+        curr_frame_time = cv2.getTickCount()
+        time_diff = (curr_frame_time - prev_frame_time) / cv2.getTickFrequency()
+        prev_frame_time = curr_frame_time
+        delay = max(int(1000 / 30 - time_diff * 1000), 1)  # Assuming 30 FPS, adjust if needed
+
+        # Yielding current state of posList along with frame
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n' + pickle.dumps(posList) + b'\r\n')
+
+        # Adding delay to simulate frame rate
+        cv2.waitKey(delay)
 
 # Flask routes
 @app.route('/')
 def index():
-    return render_template('index.php')  # Corrected to index.html
+    return render_template('index.php')  # Ensure this file exists in templates folder
 
 @app.route('/video_feed/<int:camera_id>')
 def video_feed(camera_id):

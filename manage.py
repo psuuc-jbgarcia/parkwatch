@@ -20,15 +20,21 @@ posList = load_pos_list()
 # Ensure all positions are in the correct format
 for i in range(len(posList)):
     if len(posList[i]) == 2:
-        posList[i] = (*posList[i], False, 'poly', [])
+        posList[i] = (*posList[i], False, 'rect', [], (107, 48))  # Default size (107, 48)
     elif len(posList[i]) == 3:
-        posList[i] = (*posList[i], 'poly', [])
+        posList[i] = (*posList[i], 'rect', [], (107, 48))
+    elif len(posList[i]) == 4:
+        posList[i] = (*posList[i], [], (107, 48))
+    elif len(posList[i]) == 5:
+        posList[i] = (*posList[i], (107, 48))
 
 # Counter for the number of parking spaces
 space_counter = len(posList)
 
-# Flag for delete mode
+# Flags for modes
 delete_mode = False
+resize_mode = False
+resize_index = -1
 
 def empty(a):
     pass
@@ -62,14 +68,13 @@ def checkSpaces(img, imgThres):
     spaces = 0
     reserved_spaces = 0
     for i, pos in enumerate(posList):
-        x, y, reserved, shape, points = pos
+        x, y, reserved, shape, points, size = pos
+        w, h = size
 
         if shape == 'rect':
-            w, h = 107, 48
             imgCrop = imgThres[y:y + h, x:x + w]
             count = cv2.countNonZero(imgCrop)
         elif shape == 'portrait':
-            w, h = 48, 107
             imgCrop = imgThres[y:y + h, x:x + w]
             count = cv2.countNonZero(imgCrop)
         else:  # 'poly'
@@ -93,10 +98,10 @@ def checkSpaces(img, imgThres):
 
         # Draw polygon with space number
         if shape == 'rect':
-            cv2.rectangle(img, (x, y), (x + 107, y + 48), color, thickness)
+            cv2.rectangle(img, (x, y), (x + w, y + h), color, thickness)
             draw_text_with_background(img, f'Space {i+1}', (x + 10, y + 25), text_color=color)
         elif shape == 'portrait':
-            cv2.rectangle(img, (x, y), (x + 48, y + 107), color, thickness)
+            cv2.rectangle(img, (x, y), (x + w, y + h), color, thickness)
             draw_text_with_background(img, f'Space {i+1}', (x + 10, y + 25), text_color=color)
         else:  # 'poly'
             if points:  # Ensure points are not empty
@@ -110,22 +115,23 @@ def checkSpaces(img, imgThres):
     draw_text_with_background(img, f'Reserved: {reserved_spaces}', (50, 110), text_color=(0, 255, 255), background_color=(0, 0, 0))
 
     # Display mode status
-    mode_text = "Delete Mode" if delete_mode else "Normal Mode"
-    draw_text_with_background(img, mode_text, (50, 150), text_color=(0, 255, 0) if delete_mode else (0, 0, 255), background_color=(0, 0, 0))
+    if delete_mode:
+        draw_text_with_background(img, "Delete Mode", (50, 150), text_color=(0, 0, 255), background_color=(0, 0, 0))
+    if resize_mode:
+        draw_text_with_background(img, "Resize Mode", (50, 200), text_color=(0, 255, 0), background_color=(0, 0, 0))
 
 def mouseClick(events, x, y, flags, params):
-    global posList, space_counter, delete_mode
+    global posList, space_counter, delete_mode, resize_mode, resize_index
     if events == cv2.EVENT_LBUTTONDOWN:
         if delete_mode:
-            # Delete parking space in delete mode
             for i, pos in enumerate(posList):
-                px, py, reserved, shape, points = pos
-                if shape == 'rect' and px < x < px + 107 and py < y < py + 48:
+                px, py, reserved, shape, points, size = pos
+                if shape == 'rect' and px < x < px + size[0] and py < y < py + size[1]:
                     posList.pop(i)
                     space_counter -= 1
                     save_pos_list()
                     break
-                elif shape == 'portrait' and px < x < px + 48 and py < y < py + 107:
+                elif shape == 'portrait' and px < x < px + size[0] and py < y < py + size[1]:
                     posList.pop(i)
                     space_counter -= 1
                     save_pos_list()
@@ -135,21 +141,25 @@ def mouseClick(events, x, y, flags, params):
                     space_counter -= 1
                     save_pos_list()
                     break
+        elif resize_mode:
+            for i, pos in enumerate(posList):
+                px, py, reserved, shape, points, size = pos
+                if shape in ['rect', 'portrait'] and px < x < px + size[0] and py < y < py + size[1]:
+                    resize_index = i
+                    break
         else:
-            # Add new parking space
-            posList.append((x, y, False, 'rect', []))
+            posList.append((x, y, False, 'rect', [], (107, 48)))  # Default size (107, 48)
             space_counter += 1
             save_pos_list()
     elif events == cv2.EVENT_RBUTTONDOWN:
-        # Toggle shape between 'rect' and 'portrait'
         for i, pos in enumerate(posList):
-            px, py, reserved, shape, points = pos
-            if shape == 'rect' and px < x < px + 107 and py < y < py + 48:
-                posList[i] = (px, py, reserved, 'portrait', points)
+            px, py, reserved, shape, points, size = pos
+            if shape == 'rect' and px < x < px + size[0] and py < y < py + size[1]:
+                posList[i] = (px, py, reserved, 'portrait', points, (48, 107))
                 save_pos_list()
                 break
-            elif shape == 'portrait' and px < x < px + 48 and py < y < py + 107:
-                posList[i] = (px, py, reserved, 'rect', points)
+            elif shape == 'portrait' and px < x < px + size[0] and py < y < py + size[1]:
+                posList[i] = (px, py, reserved, 'rect', points, (107, 48))
                 save_pos_list()
                 break
             elif shape == 'poly' and cv2.pointPolygonTest(np.array(points, dtype=np.int32), (x, y), False) >= 0:
@@ -158,27 +168,30 @@ def mouseClick(events, x, y, flags, params):
                 save_pos_list()
                 break
     elif events == cv2.EVENT_MBUTTONDOWN:
-        # Toggle reserved status for the clicked parking space
         for i, pos in enumerate(posList):
-            px, py, reserved, shape, points = pos
-            if shape == 'rect' and px < x < px + 107 and py < y < py + 48:
-                posList[i] = (px, py, not reserved, shape, points)
+            px, py, reserved, shape, points, size = pos
+            if shape == 'rect' and px < x < px + size[0] and py < y < py + size[1]:
+                posList[i] = (px, py, not reserved,shape, points, size)
                 save_pos_list()
                 break
-            elif shape == 'portrait' and px < x < px + 48 and py < y < py + 107:
-                posList[i] = (px, py, not reserved, shape, points)
+            elif shape == 'portrait' and px < x < px + size[0] and py < y < py + size[1]:
+                posList[i] = (px, py, not reserved, shape, points, size)
                 save_pos_list()
                 break
             elif shape == 'poly' and cv2.pointPolygonTest(np.array(points, dtype=np.int32), (x, y), False) >= 0:
-                posList[i] = (px, py, not reserved, shape, points)
+                posList[i] = (px, py, not reserved, shape, points, size)
                 save_pos_list()
                 break
     elif events == cv2.EVENT_LBUTTONDBLCLK:
-        # Start drawing a new polygon
-        posList.append((x, y, False, 'poly', [(x, y)]))
+        posList.append((x, y, False, 'poly', [(x, y)], (0, 0)))  # Polygon size is managed by points
     elif events == cv2.EVENT_MOUSEMOVE and flags == cv2.EVENT_FLAG_LBUTTON:
-        # Continue drawing a polygon
-        if posList and posList[-1][3] == 'poly':
+        if resize_mode and resize_index != -1:
+            # Resize the rectangle
+            px, py, reserved, shape, points, _ = posList[resize_index]
+            new_size = (max(20, x - px), max(20, y - py))  # Ensure minimum size of 20x20
+            posList[resize_index] = (px, py, reserved, shape, points, new_size)
+            save_pos_list()
+        elif posList and posList[-1][3] == 'poly':
             posList[-1][4].append((x, y))
             save_pos_list()
 
@@ -186,8 +199,9 @@ def save_pos_list():
     with open(parking_file, 'wb') as f:
         pickle.dump(posList, f)
 
-# Open video capture
-cap = cv2.VideoCapture('carPark.mp4')  # Change to your video source
+# Open video capture for CCTV stream
+cctv_url = 'vid.mp4'  # Replace with your CCTV stream URL
+cap = cv2.VideoCapture(cctv_url)
 
 # Get original video dimensions
 frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -203,6 +217,7 @@ cv2.setMouseCallback("Image", mouseClick)
 while True:
     success, img = cap.read()
     if not success:
+        print("Failed to grab frame from CCTV feed.")
         break
 
     # No resizing of the image
@@ -231,15 +246,22 @@ while True:
     # Display output
     cv2.imshow("Image", img_resized)
 
-    key = cv2.waitKey(1)
+    key = cv2.waitKey(10)
     if key == ord('s'):
         break
     elif key == ord('d'):
         # Toggle delete mode
         delete_mode = not delete_mode
-        mode = "Delete Mode" if delete_mode else "Normal Mode"
-        print(f"Mode switched to {mode}")
+        resize_mode = False  # Ensure resize mode is turned off
+        print("Mode switched to Delete Mode" if delete_mode else "Mode switched to Normal Mode")
+    elif key == ord('r'):
+        # Toggle resize mode
+        resize_mode = not resize_mode
+        delete_mode = False  # Ensure delete mode is turned off
+        resize_index = -1  # Reset resize index
+        print("Mode switched to Resize Mode" if resize_mode else "Mode switched to Normal Mode")
 
 # Release video capture and close all windows
 cap.release()
 cv2.destroyAllWindows()
+

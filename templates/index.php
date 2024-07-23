@@ -239,30 +239,46 @@
             <img id="video_feed" src="{{ url_for('video_feed', camera_id=1) }}" alt="CCTV Feed">
         </div>
     </div>
-    
-<!-- Modal for Instructions -->
-<div id="instructions-modal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <span class="close" onclick="closeInstructions()">&times;</span>
-            <h2>Instructions</h2>
-        </div>
-        <div class="modal-body">
-            <p>1. Left Click: Add a new parking space or rectangle.</p>
-            <p>2. Right Click: Delete an existing parking space or rectangle. (Single click for landscape, double click for portrait)</p>
-            <p>3. Middle Click: Toggle reservation status of a parking space.</p>
-            <p>4. Press 'D' Key: Toggle delete mode. When in delete mode, right-click will delete the selected parking space.</p>
-            <p>5. Press 'S' Key: Save the current parking configuration.</p>
-            <p>After configuring your parking spaces, the management script will execute.</p>
-        </div>
-        <div class="modal-footer">
-            <button onclick="runManagement()">Run Management</button>
+
+    <!-- Modal for Alert -->
+    <div id="alert-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closeAlert()">&times;</span>
+                <h2>Alert</h2>
+            </div>
+            <div class="modal-body">
+                <p>Parking slots are full!</p>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeAlert()">Close</button>
+            </div>
         </div>
     </div>
-</div>
 
+    <!-- Modal for Instructions -->
+    <div id="instructions-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closeInstructions()">&times;</span>
+                <h2>Instructions</h2>
+            </div>
+            <div class="modal-body">
+                <p>1. Left Click: Add a new parking space or rectangle.</p>
+                <p>2. Right Click: Delete an existing parking space or rectangle. (Single click for landscape, double click for portrait)</p>
+                <p>3. Middle Click: Toggle reservation status of a parking space.</p>
+                <p>4. Press 'D' Key: Toggle delete mode. When in delete mode, right-click will delete the selected parking space.</p>
+                <p>5. Press 'S' Key: Save the current configuration.</p>
+            </div>
+            <div class="modal-footer">
+                <button onclick="runManagement()">Run Management</button>
+            </div>
+        </div>
+    </div>
 
     <script>
+        let alertShown = false;
+
         function updateDateTime() {
             const now = new Date();
             const dateTimeString = now.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });
@@ -271,21 +287,34 @@
         setInterval(updateDateTime, 1000);
         updateDateTime();
 
-        // Function to update parking information
         function updateParkingInfo(data) {
             const { totalVehicles, parkingAvailable, slotsReserved } = data;
 
-            // Update total vehicles parked
             document.getElementById('total-vehicles').innerText = totalVehicles;
-
-            // Update parking slots available
             document.getElementById('parking-available').innerText = parkingAvailable;
-
-            // Update slots reserved
             document.getElementById('slots-reserved').innerText = slotsReserved;
+
+            if (parseInt(parkingAvailable, 10) === 0 && !alertShown) {
+                showAlert();
+                alertShown = true;
+            } else if (parseInt(parkingAvailable, 10) > 0) {
+                alertShown = false;
+            }
         }
 
-        // Function to fetch updated parking information
+        function showAlert() {
+            const alertModal = document.getElementById('alert-modal');
+            alertModal.style.display = 'flex';
+            
+            setTimeout(() => {
+                closeAlert();
+            }, 5000);
+        }
+
+        function closeAlert() {
+            document.getElementById('alert-modal').style.display = 'none';
+        }
+
         function fetchParkingInfo() {
             fetch('/get_parking_info')
                 .then(response => {
@@ -295,7 +324,6 @@
                     throw new Error('Network response was not ok');
                 })
                 .then(data => {
-                    console.log('Parking information received:', data);
                     updateParkingInfo(data);
                 })
                 .catch(error => {
@@ -303,9 +331,8 @@
                 });
         }
 
-        // Run fetchParkingInfo initially and every 5 seconds
         fetchParkingInfo();
-        setInterval(fetchParkingInfo, 1000);
+        setInterval(fetchParkingInfo, 5000);
 
         function runManagement() {
             fetch('/run_management')
@@ -316,7 +343,6 @@
                     throw new Error('Network response was not ok');
                 })
                 .then(data => {
-                    console.log('Management script executed successfully:', data);
                     alert('Management script executed successfully!');
                 })
                 .catch(error => {
@@ -333,19 +359,16 @@
             document.getElementById('instructions-modal').style.display = 'none';
         }
 
-        // Function to update camera feed
         function updateCamera() {
             const cameraId = document.getElementById('cameraSelect').value;
             const videoFeed = document.getElementById('video_feed');
             videoFeed.src = `/video_feed/${cameraId}`;
         }
 
-        // Add event listener for saving with 'S' key
         document.addEventListener('keydown', function(event) {
             if (event.key === 's' || event.key === 'S') {
-                event.preventDefault(); // Prevent default behavior
+                event.preventDefault();
                 alert('Saving configuration...');
-                // Add save functionality here
             }
         });
     </script>
