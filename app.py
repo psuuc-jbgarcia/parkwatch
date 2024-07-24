@@ -12,13 +12,17 @@ app = Flask(__name__)
 # File path for parking positions
 parking_file = 'CarParkPos'
 
-# Function to load parking positions
 def load_pos_list():
+    pos_list_path = 'CarParkPos'  # Update with your file path
+    if not os.path.exists(pos_list_path):
+        print(f"Error: File not found: {pos_list_path}")
+        return []
+    
     try:
-        with open(parking_file, 'rb') as f:
+        with open(pos_list_path, 'rb') as f:
             return pickle.load(f)
-    except FileNotFoundError:
-        print(f"Warning: {parking_file} not found.")
+    except (pickle.PickleError, EOFError, IOError) as e:
+        print(f"Error loading pickle file: {e}")
         return []
 
 # Initialize or load parking positions
