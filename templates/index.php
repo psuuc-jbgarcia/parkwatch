@@ -307,7 +307,7 @@
             alertModal.style.display = 'flex';
             
             setTimeout(() => {
-                closeAlert();
+                // closeAlert();
             }, 5000);
         }
 
@@ -332,7 +332,7 @@
         }
 
         fetchParkingInfo();
-        setInterval(fetchParkingInfo, 5000);
+        setInterval(fetchParkingInfo, 1000);
 
         function runManagement() {
             fetch('/run_management')
