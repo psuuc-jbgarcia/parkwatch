@@ -4,186 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parking Space Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f2f2f2;
-            margin: 0;
-            padding: 0;
-        }
-        .header {
-            width: 100%;
-            background-color: #6390D3;
-            color: #ffffff;
-            padding: 10px 0;
-            text-align: center;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            position: fixed;
-            top: 0;
-            left: 0;
-            z-index: 1000;
-        }
-        .header h1 {
-            margin: 0;
-        }
-        .header .date-time {
-            font-size: 1.2em;
-        }
-        .menu {
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            background-color: #6390D3;
-            color: #ffffff;
-            padding: 10px 0;
-            position: fixed;
-            width: 100%;
-            top: 60px;
-            left: 0;
-            z-index: 1000;
-        }
-        .menu a {
-            color: #ffffff;
-            text-decoration: none;
-            font-size: 1.2em;
-        }
-        .menu button {
-            background-color: transparent;
-            color: #ffffff;
-            border: 1px solid #ffffff;
-            padding: 5px 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1.2em;
-        }
-        .container {
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            padding: 20px;
-            margin-top: 140px;
-        }
-        .dashboard {
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            background-color: #ffffff;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            margin-right: 20px;
-        }
-        .info-box {
-            background-color: #ffffff;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            margin-bottom: 20px;
-            text-align: center;
-            color: #000000;
-        }
-        .info-box h2 {
-            margin: 0;
-            font-size: 2em;
-        }
-        .info-box p {
-            margin: 5px 0;
-            font-size: 1.2em;
-        }
-        .info-box .total-vehicles {
-            background-color: #6390D3;
-            color: #ffffff;
-            padding: 10px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .info-box .parking-available {
-            background-color: #32CD32;
-            color: #ffffff;
-            padding: 10px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .info-box .slots-reserved {
-            background-color: #FFA500;
-            color: #ffffff;
-            padding: 10px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .info-box .icon {
-            margin-right: 10px;
-        }
-        .cctv-cam {
-            flex: 2;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .cctv-cam select {
-            margin-bottom: 10px;
-            padding: 5px;
-            font-size: 1em;
-        }
-        .cctv-cam img {
-            width: 100%;
-            max-width: 800px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        .cctv-cam h2 {
-            text-align: center;
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.4);
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-content {
-            background-color: #fefefe;
-            margin: 15% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
-            border-radius: 10px;
-        }
-        .modal-header, .modal-footer {
-            padding: 10px;
-            text-align: center;
-            border-bottom: 1px solid #ddd;
-        }
-        .modal-header {
-            border-bottom: none;
-        }
-        .modal-footer {
-            border-top: 1px solid #ddd;
-        }
-        .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-        }
-        .close:hover,
-        .close:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
-        }
+       
     </style>
 </head>
 <body>
@@ -195,8 +19,7 @@
     </div>
     <div class="menu" style="margin-top:10px">
         <a href="#">Home</a>
-        <a href="#">Reports</a>
-        <a href="#">About Us</a>
+        <button onclick="generateReport()">Generate Report</button>
         <button onclick="showInstructions()">Run Management</button>
     </div>
     <div class="container">
@@ -363,6 +186,41 @@
             const cameraId = document.getElementById('cameraSelect').value;
             const videoFeed = document.getElementById('video_feed');
             videoFeed.src = `/video_feed/${cameraId}`;
+        }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 's' || event.key === 'S') {
+                event.preventDefault();
+                alert('Saving configuration...');
+            }
+        });
+        function generateReport() {
+            fetch('/daily_report')
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error('Network response was not ok');
+                })
+                .then(data => {
+                    // Create a formatted report string
+                    const reportContent = `
+                        <h3>Total Vehicles Parked: ${data.total_parked}</h3>
+                        <h3>Reserved Spaces: ${data.reserved_spaces}</h3>
+                        <h3>Times Parking Was Full:</h3>
+                        <ul>${data.full_parking_times.map(time => `<li>${new Date(time).toLocaleString()}</li>`).join('')}</ul>
+                    `;
+                    document.getElementById('report-content').innerHTML = reportContent;
+                    document.getElementById('report-modal').style.display = 'flex';
+                })
+                .catch(error => {
+                    console.error('Error fetching report:', error);
+                    alert('Failed to generate report.');
+                });
+        }
+
+        function closeReport() {
+            document.getElementById('report-modal').style.display = 'none';
         }
 
         document.addEventListener('keydown', function(event) {

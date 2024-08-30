@@ -1,27 +1,46 @@
-from flask import Flask, render_template, Response, request, jsonify, stream_with_context
 import cv2
-import pickle
 import numpy as np
-import subprocess
+import pickle
 import os
+from flask import Flask, render_template, Response, request, jsonify
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+import subprocess
+from license_plate_detector import LicensePlateDetector
 
 app = Flask(__name__)
+# Path to your trained YOLO model
+model_path = 'license_plate_detector.pt'
 
+# Initialize License Plate Detector
+plate_detector = LicensePlateDetector(model_path)
+# Adjust Code for Network Latency
+# If the camera is on a different network with high latency, increase the timeout value for cv2.VideoCapture.
+# Example:
+
+# python
+# Copy code
+# cap1_web.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000)  # Set a longer timeout
 # File path for parking positions
 parking_file = 'CarParkPos'
-# vid1='rtsp://192.168.100.112:8080/h264_aac.sdp'
-vid1='carPark.mp4'
-camera_id=1
+timeout_ms = 60000  # Adjust as needed
+vid1 = 'a.mp4'
+cap1_web = cv2.VideoCapture(vid1, cv2.CAP_FFMPEG)
+cap2_web = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
+cap1_flutter = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
+cap2_flutter = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
+
+cap1_web.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+cap2_web.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+cap1_flutter.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+cap2_flutter.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+
 def load_pos_list():
-    pos_list_path = 'CarParkPos'
-    if not os.path.exists(pos_list_path):
-        print(f"Error: File not found: {pos_list_path}")
+    if not os.path.exists(parking_file):
+        print(f"Error: File not found: {parking_file}")
         return []
-    
     try:
-        with open(pos_list_path, 'rb') as f:
+        with open(parking_file, 'rb') as f:
             return pickle.load(f)
     except (pickle.PickleError, EOFError, IOError) as e:
         print(f"Error loading pickle file: {e}")
@@ -119,20 +138,16 @@ observer = Observer()
 observer.schedule(event_handler, path=os.path.dirname(os.path.abspath(parking_file)), recursive=False)
 observer.start()
 
-cap1_web = cv2.VideoCapture(vid1)
-cap1_flutter = cv2.VideoCapture(vid1)
-cap2_web = cv2.VideoCapture('vid.mp4')
-cap2_flutter = cv2.VideoCapture('vid.mp4')
-
-
 def gen_frames(video_source):
-    prev_frame_time = 0
     while True:
         success, frame = video_source.read()
         if not success:
-            break
+            print("Failed to grab frame, retrying...")
+            video_source.release()
+            video_source = cv2.VideoCapture(vid1, cv2.CAP_FFMPEG)
+            continue
 
-        # Preprocess the frame
+        # Preprocess the frame as before
         imgGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         imgBlur = cv2.GaussianBlur(imgGray, (3, 3), 1)
         val1 = cv2.getTrackbarPos("Val1", "Vals")
@@ -145,24 +160,57 @@ def gen_frames(video_source):
         kernel = np.ones((3, 3), np.uint8)
         imgThres = cv2.dilate(imgThres, kernel, iterations=1)
 
-        # Check for free spaces and draw rectangles
+        # License plate detection
+        plates_info = plate_detector.detect_license_plates(frame)
+
+        # Draw rectangles and text for detected license plates
+        for x1, y1, x2, y2, plate_text in plates_info:
+            # Draw a rectangle around the detected license plate
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+            # Use the detected plate text
+            normalized_text = plate_text
+
+            # Overlay text on the frame with a background rectangle
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.7
+            font_color = (0, 255, 0)  # Green color
+            font_thickness = 2
+            text_size, _ = cv2.getTextSize(normalized_text, font, font_scale, font_thickness)
+            text_x = x1
+            text_y = y1 - 10  # Position text above the detected plate
+            background_top_left = (text_x, text_y - text_size[1] - 10)
+            background_bottom_right = (text_x + text_size[0], text_y + 5)
+            
+            # Draw the background rectangle for text
+            cv2.rectangle(frame, background_top_left, background_bottom_right, (0, 0, 0), cv2.FILLED)
+
+            # Draw the text on the frame
+            cv2.putText(frame, normalized_text, (text_x, text_y), font, font_scale, font_color, font_thickness, cv2.LINE_AA)
+
+        # Check for free spaces and draw rectangles as before
         checkSpaces(frame, imgThres)
 
         # Encode image as jpg format
         ret, buffer = cv2.imencode('.jpg', frame)
+        if not ret:
+            print("Failed to encode frame")
+            break
         frame = buffer.tobytes()
 
         # Yielding current state of posList along with frame
         yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n' + pickle.dumps(posList) + b'\r\n')
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
-        # Adding delay to simulate frame rate
+
 def gen_frames_for_flutter(video_source):
-    prev_frame_time = 0
     while True:
         success, frame = video_source.read()
         if not success:
-            break
+            print("Failed to grab frame, retrying...")
+            video_source.release()
+            video_source = cv2.VideoCapture(vid1, cv2.CAP_FFMPEG)
+            continue
 
         # Preprocess the frame
         imgGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -182,11 +230,17 @@ def gen_frames_for_flutter(video_source):
 
         # Encode image as jpg format
         ret, buffer = cv2.imencode('.jpg', frame)
+        if not ret:
+            print("Failed to encode frame")
+            break
         frame = buffer.tobytes()
 
         # Yielding current state of posList along with frame
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n' + pickle.dumps(posList) + b'\r\n')
+
+
+
 
 @app.route('/')
 def index():
@@ -217,6 +271,7 @@ def video_feed_flutter(camera_id):
     except Exception as e:
         print(f"Error in video_feed_flutter: {e}")
         return "Error occurred", 500
+
 
 
 

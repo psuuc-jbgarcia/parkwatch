@@ -20,13 +20,13 @@ posList = load_pos_list()
 # Ensure all positions are in the correct format
 for i in range(len(posList)):
     if len(posList[i]) == 2:
-        posList[i] = (*posList[i], False, 'rect', [], (107, 48))  # Default size (107, 48)
+        posList[i] = (*posList[i], False, 'rect', [], (107, 107))  # Default size (107, 48)
     elif len(posList[i]) == 3:
-        posList[i] = (*posList[i], 'rect', [], (107, 48))
+        posList[i] = (*posList[i], 'rect', [], (107, 107))
     elif len(posList[i]) == 4:
-        posList[i] = (*posList[i], [], (107, 48))
+        posList[i] = (*posList[i], [],(107, 107))
     elif len(posList[i]) == 5:
-        posList[i] = (*posList[i], (107, 48))
+        posList[i] = (*posList[i],(107, 107))
 
 # Counter for the number of parking spaces
 space_counter = len(posList)
@@ -200,7 +200,7 @@ def save_pos_list():
         pickle.dump(posList, f)
 
 # Open video capture for CCTV stream
-cctv_url = 'vid.mp4'  # Replace with your CCTV stream URL
+cctv_url = 'carPark.mp4'  # Replace with your CCTV stream URL
 cap = cv2.VideoCapture(cctv_url)
 
 # Get original video dimensions

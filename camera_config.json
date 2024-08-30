@@ -1,0 +1,22 @@
+{
+    "cameras": [
+        {
+            "id": 1,
+            "url_web": "a.mp4",
+            "url_flutter": "a.mp4",
+            "name": "Camera 1"
+        },
+        {
+            "id": 2,
+            "url_web": "rtsp://192.168.100.112:8080/h264_aac.sdp",
+            "url_flutter": "rtsp://192.168.100.112:8080/h264_aac.sdp",
+            "name": "Camera 2"
+        },
+        {
+            "id": 3,
+            "url_web": "rtsp://192.168.100.112:8080/h264_aac.sdp",
+            "url_flutter": "rtsp://192.168.100.112:8080/h264_aac.sdp",
+            "name": "Camera 3"
+        }
+    ]
+}
