@@ -7,10 +7,18 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import subprocess
 from license_plate_detector import LicensePlateDetector
-
+from firebase.firebase_config import db
+import json
+import pytz
+import datetime
+import threading
 app = Flask(__name__)
 # Path to your trained YOLO model
 model_path = 'license_plate_detector.pt'
+daily_total_parked_vehicles = 0
+daily_reserved_vehicles = 0
+FULL_PARKING_TIMESTAMPS_FILE = 'full_parking_timestamps.json'
+DAILY_REPORT_FILE = 'daily_report.json'
 
 # Initialize License Plate Detector
 plate_detector = LicensePlateDetector(model_path)
@@ -24,7 +32,7 @@ plate_detector = LicensePlateDetector(model_path)
 # File path for parking positions
 parking_file = 'CarParkPos'
 timeout_ms = 60000  # Adjust as needed
-vid1 = 'a.mp4'
+vid1 = 'carPark.mp4'
 cap1_web = cv2.VideoCapture(vid1, cv2.CAP_FFMPEG)
 cap2_web = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
 cap1_flutter = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
@@ -34,6 +42,51 @@ cap1_web.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 cap2_web.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 cap1_flutter.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 cap2_flutter.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+
+def save_daily_report():
+    global daily_total_parked_vehicles, daily_reserved_vehicles
+
+    # Get the current time in Philippine Time (PHT)
+    tz = pytz.timezone('Asia/Manila')
+    now = datetime.datetime.now(tz)
+    today = now.strftime('%Y-%m-%d')
+
+    # Create the report data
+    report_data = {
+        'date': today,
+        'total_parked_vehicles': daily_total_parked_vehicles,
+        'reserved_vehicles': daily_reserved_vehicles
+    }
+
+    # Load existing reports
+    if os.path.exists(DAILY_REPORT_FILE):
+        try:
+            with open(DAILY_REPORT_FILE, 'r') as file:
+                reports = json.load(file)
+        except json.JSONDecodeError:
+            reports = []
+    else:
+        reports = []
+
+    # Add the new report
+    reports.append(report_data)
+
+    # Save updated reports to the file
+    with open(DAILY_REPORT_FILE, 'w') as file:
+        json.dump(reports, file)
+
+    # Reset daily counters
+    daily_total_parked_vehicles = 0
+    daily_reserved_vehicles = 0
+
+def schedule_daily_report():
+    tz = pytz.timezone('Asia/Manila')
+    now = datetime.datetime.now(tz)
+    next_midnight = (now + datetime.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    time_until_midnight = (next_midnight - now).total_seconds()
+
+    # Schedule the report saving after time_until_midnight seconds
+    threading.Timer(time_until_midnight, save_daily_report).start()
 
 def load_pos_list():
     if not os.path.exists(parking_file):
@@ -77,6 +130,8 @@ cv2.createTrackbar("Val3", "Vals", 5, 50, empty)
 
 def checkSpaces(img, imgThres):
     global space_counter, free_spaces, reserved_spaces
+    global daily_total_parked_vehicles, daily_reserved_vehicles
+    
     spaces = 0
     reserved_spaces = 0
     for i, pos in enumerate(posList):
@@ -100,10 +155,12 @@ def checkSpaces(img, imgThres):
             color = (0, 255, 255)  # Yellow for reserved
             thickness = 5
             reserved_spaces += 1
+            daily_reserved_vehicles += 1
         elif count < 900:
             color = (0, 200, 0)
             thickness = 5
             spaces += 1
+            daily_total_parked_vehicles += 1
         else:
             color = (0, 0, 200)
             thickness = 2
@@ -160,33 +217,33 @@ def gen_frames(video_source):
         kernel = np.ones((3, 3), np.uint8)
         imgThres = cv2.dilate(imgThres, kernel, iterations=1)
 
-        # License plate detection
-        plates_info = plate_detector.detect_license_plates(frame)
+        # # License plate detection
+        # plates_info = plate_detector.detect_license_plates(frame)
 
-        # Draw rectangles and text for detected license plates
-        for x1, y1, x2, y2, plate_text in plates_info:
-            # Draw a rectangle around the detected license plate
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        # # Draw rectangles and text for detected license plates
+        # for x1, y1, x2, y2, plate_text in plates_info:
+        #     # Draw a rectangle around the detected license plate
+        #     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-            # Use the detected plate text
-            normalized_text = plate_text
+        #     # Use the detected plate text
+        #     normalized_text = plate_text
 
-            # Overlay text on the frame with a background rectangle
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            font_scale = 0.7
-            font_color = (0, 255, 0)  # Green color
-            font_thickness = 2
-            text_size, _ = cv2.getTextSize(normalized_text, font, font_scale, font_thickness)
-            text_x = x1
-            text_y = y1 - 10  # Position text above the detected plate
-            background_top_left = (text_x, text_y - text_size[1] - 10)
-            background_bottom_right = (text_x + text_size[0], text_y + 5)
+        #     # Overlay text on the frame with a background rectangle
+        #     font = cv2.FONT_HERSHEY_SIMPLEX
+        #     font_scale = 0.7
+        #     font_color = (0, 255, 0)  # Green color
+        #     font_thickness = 2
+        #     text_size, _ = cv2.getTextSize(normalized_text, font, font_scale, font_thickness)
+        #     text_x = x1
+        #     text_y = y1 - 10  # Position text above the detected plate
+        #     background_top_left = (text_x, text_y - text_size[1] - 10)
+        #     background_bottom_right = (text_x + text_size[0], text_y + 5)
             
-            # Draw the background rectangle for text
-            cv2.rectangle(frame, background_top_left, background_bottom_right, (0, 0, 0), cv2.FILLED)
+        #     # Draw the background rectangle for text
+        #     cv2.rectangle(frame, background_top_left, background_bottom_right, (0, 0, 0), cv2.FILLED)
 
-            # Draw the text on the frame
-            cv2.putText(frame, normalized_text, (text_x, text_y), font, font_scale, font_color, font_thickness, cv2.LINE_AA)
+        #     # Draw the text on the frame
+        #     cv2.putText(frame, normalized_text, (text_x, text_y), font, font_scale, font_color, font_thickness, cv2.LINE_AA)
 
         # Check for free spaces and draw rectangles as before
         checkSpaces(frame, imgThres)
@@ -295,9 +352,56 @@ def run_management():
     except Exception as e:
         print(f"Error running management script: {e}")
         return str(e), 500
-    
 
+@app.route('/report_incident', methods=['POST'])
+def report_incident():
+    """
+    Handle incident report submission.
+    """
+    try:
+        data = request.json
+        description = data.get('description')
+        timestamp = data.get('timestamp')
 
+        if not description or not timestamp:
+            return jsonify({'error': 'Invalid input'}), 400
 
+        # Save the incident report to Firestore
+        incident_ref = db.collection('admin').add({
+            'description': description,
+            'timestamp': timestamp
+        })
+
+        return jsonify({'message': 'Incident report submitted successfully'}), 200
+
+    except Exception as e:
+        print(f'Error: {e}')
+        return jsonify({'error': 'Internal server error'}), 500
+@app.route('/save_full_parking_timestamp', methods=['POST'])
+def save_full_parking_timestamp():
+    timestamp = request.json.get('timestamp')
+
+    if not timestamp:
+        return jsonify({'error': 'No timestamp provided'}), 400
+
+    # Read existing data from the JSON file
+    if os.path.exists(FULL_PARKING_TIMESTAMPS_FILE):
+        try:
+            with open(FULL_PARKING_TIMESTAMPS_FILE, 'r') as file:
+                timestamps = json.load(file)
+        except json.JSONDecodeError:
+            # Handle the case where the file is empty or corrupted
+            timestamps = []
+    else:
+        timestamps = []
+
+    # Append the new timestamp
+    timestamps.append(timestamp)
+
+    # Save the updated list back to the JSON file
+    with open(FULL_PARKING_TIMESTAMPS_FILE, 'w') as file:
+        json.dump(timestamps, file)
+
+    return jsonify({'success': True}), 200
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
