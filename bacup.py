@@ -5,8 +5,6 @@ import os
 from flask import Flask, render_template, Response, request, jsonify
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.cron import CronTrigger
 import subprocess
 from license_plate_detector import LicensePlateDetector
 from firebase.firebase_config import db
@@ -21,8 +19,6 @@ daily_total_parked_vehicles = 0
 daily_reserved_vehicles = 0
 FULL_PARKING_TIMESTAMPS_FILE = 'full_parking_timestamps.json'
 DAILY_REPORT_FILE = 'daily_report.json'
-
-scheduler = BackgroundScheduler(timezone='Asia/Manila')
 
 # Initialize License Plate Detector
 plate_detector = LicensePlateDetector(model_path)
@@ -47,60 +43,59 @@ cap2_web.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 cap1_flutter.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 cap2_flutter.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 
-
-
 def save_daily_report():
     global daily_total_parked_vehicles, daily_reserved_vehicles
 
+    # Get the current time in Philippine Time (PHT)
     tz = pytz.timezone('Asia/Manila')
     now = datetime.datetime.now(tz)
     today = now.strftime('%Y-%m-%d')
 
+    # Create the report data
     report_data = {
         'date': today,
         'total_parked_vehicles': daily_total_parked_vehicles,
         'reserved_vehicles': daily_reserved_vehicles
     }
 
-    print("Attempting to save daily report...")
-
-    try:
-        if os.path.exists(DAILY_REPORT_FILE):
-            try:
-                with open(DAILY_REPORT_FILE, 'r') as file:
-                    reports = json.load(file)
-            except json.JSONDecodeError:
-                print("JSON decoding error. Initializing empty list.")
-                reports = []
-        else:
+    # Load existing reports
+    if os.path.exists(DAILY_REPORT_FILE):
+        try:
+            with open(DAILY_REPORT_FILE, 'r') as file:
+                reports = json.load(file)
+        except json.JSONDecodeError:
             reports = []
+    else:
+        reports = []
 
-        reports.append(report_data)
-        print("Writing to JSON file...")
+    # Add the new report
+    reports.append(report_data)
 
-        with open(DAILY_REPORT_FILE, 'w') as file:
-            json.dump(reports, file)
+    # Save updated reports to the file
+    with open(DAILY_REPORT_FILE, 'w') as file:
+        json.dump(reports, file)
+    print(f"Report saved at {now.strftime('%Y-%m-%d %H:%M:%S')} to JSON file...")  # Debugging statement
 
-        print(f"Report saved at {now.strftime('%Y-%m-%d %H:%M:%S')}")
+    # Reset daily counters
+    daily_total_parked_vehicles = 0
+    daily_reserved_vehicles = 0
 
-        daily_total_parked_vehicles = 0
-        daily_reserved_vehicles = 0
-
-    except Exception as e:
-        print(f"Error saving daily report: {e}")
-
+    # Reschedule the next daily report
+    schedule_daily_report()
 
 def schedule_daily_report():
-    # Schedule the save_daily_report function to run every minute for testing purposes
-    trigger = CronTrigger(minute='*/1')  # Runs every 1 minute
-    scheduler.add_job(save_daily_report, trigger, id='daily_report_job')
-    print("Scheduled daily report job for every minute (for testing).")
+    tz = pytz.timezone('Asia/Manila')
+    now = datetime.datetime.now(tz)
+    next_midnight = (now + datetime.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    time_until_midnight = (next_midnight - now).total_seconds()
 
-# Schedule the daily report job
+    print(f"Scheduling next report in {time_until_midnight} seconds (will run at {next_midnight.strftime('%Y-%m-%d %H:%M:%S')})...")  # Debugging statement
+
+    # Schedule the report saving after time_until_midnight seconds
+    threading.Timer(time_until_midnight, save_daily_report).start()
+
+# Call schedule_daily_report() to initiate the first schedule
 schedule_daily_report()
-
-# Start the scheduler
-scheduler.start()
 def load_pos_list():
     if not os.path.exists(parking_file):
         print(f"Error: File not found: {parking_file}")
@@ -130,7 +125,6 @@ space_counter = len(posList)
 # Global variables to store parking information
 free_spaces = 0
 reserved_spaces = 0
-
 def empty(a):
     pass
 
