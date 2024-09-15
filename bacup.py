@@ -5,6 +5,8 @@ import os
 from flask import Flask, render_template, Response, request, jsonify
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 import subprocess
 from license_plate_detector import LicensePlateDetector
 from firebase.firebase_config import db
@@ -19,6 +21,10 @@ daily_total_parked_vehicles = 0
 daily_reserved_vehicles = 0
 FULL_PARKING_TIMESTAMPS_FILE = 'full_parking_timestamps.json'
 DAILY_REPORT_FILE = 'daily_report.json'
+CAMERA_FILE_PATH = 'camera_urls.json'
+cameraIdCounter = 2  # Start camera ID from 2
+
+scheduler = BackgroundScheduler(timezone='Asia/Manila')
 
 # Initialize License Plate Detector
 plate_detector = LicensePlateDetector(model_path)
@@ -43,59 +49,64 @@ cap2_web.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 cap1_flutter.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 cap2_flutter.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 
+
+
 def save_daily_report():
     global daily_total_parked_vehicles, daily_reserved_vehicles
 
-    # Get the current time in Philippine Time (PHT)
     tz = pytz.timezone('Asia/Manila')
     now = datetime.datetime.now(tz)
     today = now.strftime('%Y-%m-%d')
 
-    # Create the report data
     report_data = {
         'date': today,
         'total_parked_vehicles': daily_total_parked_vehicles,
         'reserved_vehicles': daily_reserved_vehicles
     }
 
-    # Load existing reports
-    if os.path.exists(DAILY_REPORT_FILE):
-        try:
-            with open(DAILY_REPORT_FILE, 'r') as file:
-                reports = json.load(file)
-        except json.JSONDecodeError:
+    print("Attempting to save daily report...")
+
+    try:
+        if os.path.exists(DAILY_REPORT_FILE):
+            try:
+                with open(DAILY_REPORT_FILE, 'r') as file:
+                    reports = json.load(file)
+            except json.JSONDecodeError:
+                print("JSON decoding error. Initializing empty list.")
+                reports = []
+        else:
             reports = []
-    else:
-        reports = []
 
-    # Add the new report
-    reports.append(report_data)
+        reports.append(report_data)
+        print("Writing to JSON file...")
 
-    # Save updated reports to the file
-    with open(DAILY_REPORT_FILE, 'w') as file:
-        json.dump(reports, file)
-    print(f"Report saved at {now.strftime('%Y-%m-%d %H:%M:%S')} to JSON file...")  # Debugging statement
+        with open(DAILY_REPORT_FILE, 'w') as file:
+            json.dump(reports, file)
 
-    # Reset daily counters
-    daily_total_parked_vehicles = 0
-    daily_reserved_vehicles = 0
+        print(f"Report saved at {now.strftime('%Y-%m-%d %H:%M:%S')}")
 
-    # Reschedule the next daily report
-    schedule_daily_report()
+        daily_total_parked_vehicles = 0
+        daily_reserved_vehicles = 0
 
-def schedule_daily_report():
-    tz = pytz.timezone('Asia/Manila')
-    now = datetime.datetime.now(tz)
-    next_midnight = (now + datetime.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-    time_until_midnight = (next_midnight - now).total_seconds()
+    except Exception as e:
+        print(f"Error saving daily report: {e}")
 
-    print(f"Scheduling next report in {time_until_midnight} seconds (will run at {next_midnight.strftime('%Y-%m-%d %H:%M:%S')})...")  # Debugging statement
 
-    # Schedule the report saving after time_until_midnight seconds
-    threading.Timer(time_until_midnight, save_daily_report).start()
+# def schedule_daily_report():
+#     global scheduler
+#     if not scheduler.get_job('daily_report_job'):
+#         trigger = CronTrigger(minute='*/1')  # For testing purposes, every minute
+#         scheduler.add_job(save_daily_report, trigger, id='daily_report_job')
+#         print("Scheduled daily report job.")
+#     else:
+#         print("Daily report job already scheduled.")
 
-# Call schedule_daily_report() to initiate the first schedule
-schedule_daily_report()
+
+# # Schedule the daily report job
+# schedule_daily_report()
+
+# Start the scheduler
+scheduler.start()
 def load_pos_list():
     if not os.path.exists(parking_file):
         print(f"Error: File not found: {parking_file}")
@@ -125,6 +136,7 @@ space_counter = len(posList)
 # Global variables to store parking information
 free_spaces = 0
 reserved_spaces = 0
+
 def empty(a):
     pass
 
@@ -142,9 +154,20 @@ def checkSpaces(img, imgThres):
     spaces = 0
     reserved_spaces = 0
     for i, pos in enumerate(posList):
-        x, y, reserved, shape, points, size = pos
+        # Ensure default values if not enough elements in pos
+        if len(pos) < 6:
+            print(f"Warning: Unexpected format for position {i}: {pos}")
+            continue  # Skip this entry as it's not in the expected format
+
+        x, y, reserved, shape, points, size = pos[:6]  # Unpack the first 6 elements safely
+
+        # Ensure the additional fields have default values if missing
+        was_reserved = pos[6] if len(pos) > 6 else False
+        was_occupied = pos[7] if len(pos) > 7 else False
+
         w, h = size
 
+        # Determine the number of non-zero pixels in the defined shape
         if shape == 'rect':
             imgCrop = imgThres[y:y + h, x:x + w]
             count = cv2.countNonZero(imgCrop)
@@ -158,19 +181,27 @@ def checkSpaces(img, imgThres):
             imgCrop = cv2.bitwise_and(imgThres, mask)
             count = cv2.countNonZero(imgCrop)
 
+        # Check if space is reserved or parked
         if reserved:
             color = (0, 255, 255)  # Yellow for reserved
             thickness = 5
-            reserved_spaces += 1
-            daily_reserved_vehicles += 1
+            if not was_reserved:  # Increment only when transitioning from non-reserved to reserved
+                daily_reserved_vehicles += 1
+                posList[i] = (*pos[:6], True, was_occupied)  # Update state in posList
+            reserved_spaces += 1  # Count for displaying purposes
         elif count < 900:
-            color = (0, 200, 0)
+            color = (0, 200, 0)  # Green for free space
             thickness = 5
-            spaces += 1
-            daily_total_parked_vehicles += 1
+            if not was_occupied:  # Increment only when transitioning from not occupied to occupied
+                daily_total_parked_vehicles += 1
+                posList[i] = (*pos[:6], was_reserved, True)  # Update state in posList
+            spaces += 1  # Count for displaying purposes
         else:
-            color = (0, 0, 200)
+            color = (0, 0, 200)  # Red for occupied
             thickness = 2
+            # Reset if previously reserved or occupied
+            if was_reserved or was_occupied:
+                posList[i] = (*pos[:6], False, False)  # Reset states to False
 
         # Draw shapes and text with background
         if shape == 'rect':
@@ -187,7 +218,11 @@ def checkSpaces(img, imgThres):
                     cv2.putText(img, f'Space {i+1}', (points[0][0] + 10, points[0][1] + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
                     cv2.putText(img, str(count), (points[0][0], points[0][1] - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
 
+    # Update global counters
     free_spaces = spaces
+    reserved_spaces = reserved_spaces
+
+    # Display counters
     cv2.putText(img, f'Free: {spaces}/{len(posList)}', (50, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 200, 0), 1, lineType=cv2.LINE_AA)
     cv2.putText(img, f'Reserved: {reserved_spaces}', (50, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, lineType=cv2.LINE_AA)
 
@@ -267,8 +302,10 @@ def gen_frames(video_source):
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 
+
 def gen_frames_for_flutter(video_source):
     while True:
+        # Read a frame from the video source
         success, frame = video_source.read()
         if not success:
             print("Failed to grab frame, retrying...")
@@ -279,11 +316,17 @@ def gen_frames_for_flutter(video_source):
         # Preprocess the frame
         imgGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         imgBlur = cv2.GaussianBlur(imgGray, (3, 3), 1)
+
+        # Get threshold values
         val1 = cv2.getTrackbarPos("Val1", "Vals")
         val2 = cv2.getTrackbarPos("Val2", "Vals")
         val3 = cv2.getTrackbarPos("Val3", "Vals")
+
+        # Ensure odd values for threshold parameters
         if val1 % 2 == 0: val1 += 1
         if val3 % 2 == 0: val3 += 1
+
+        # Apply adaptive threshold and blur
         imgThres = cv2.adaptiveThreshold(imgBlur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, val1, val2)
         imgThres = cv2.medianBlur(imgThres, val3)
         kernel = np.ones((3, 3), np.uint8)
@@ -297,18 +340,20 @@ def gen_frames_for_flutter(video_source):
         if not ret:
             print("Failed to encode frame")
             break
-        frame = buffer.tobytes()
+        frame_bytes = buffer.tobytes()
 
-        # Yielding current state of posList along with frame
+        # Serialize posList only if necessary
+        pos_list_serialized = pickle.dumps(posList)
+
+        # Yielding the current state of posList along with frame
         yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n' + pickle.dumps(posList) + b'\r\n')
-
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n' + pos_list_serialized + b'\r\n')
 
 
 
 @app.route('/')
 def index():
-    return render_template('index.php')  # Ensure this file exists in templates folder
+    return render_template('index.html')  # Ensure this file exists in templates folder
 
 @app.route('/video_feed/<int:camera_id>')
 def video_feed(camera_id):
@@ -409,6 +454,107 @@ def save_full_parking_timestamp():
     with open(FULL_PARKING_TIMESTAMPS_FILE, 'w') as file:
         json.dump(timestamps, file)
 
-    return jsonify({'success': True}), 200
+@app.route('/fetch_comments', methods=['GET'])
+def fetch_comments():
+    try:
+        admin_collection_ref = db.collection('admin')
+        incidents = []
+        
+        # Loop through each document in the 'admin' collection
+        for incident_doc in admin_collection_ref.stream():
+            incident_data = incident_doc.to_dict()
+            incident_id = incident_doc.id
+
+            # Fetch description and timestamp from the incident document
+            description = incident_data.get('description', 'No description available')
+            timestamp = incident_data.get('timestamp', 'Unknown')
+            
+            # Fetch comments from the 'comments' subcollection ordered by timestamp
+            comments_ref = admin_collection_ref.document(incident_id).collection('comments').order_by('timestamp')
+            comments = []
+            for comment in comments_ref.stream():
+                comment_data = comment.to_dict()
+                comments.append(comment_data)
+            
+            # Build the response with incident details and ordered comments
+            incidents.append({
+                'incident_id': incident_id,
+                'description': description,
+                'timestamp': timestamp,
+                'comments': comments
+            })
+
+        # Return incidents with their respective comments
+        return jsonify(incidents)
+    except Exception as e:
+        print(f"Error fetching comments: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+
+def load_camera_urls():
+    """Load camera URLs from the JSON file."""
+    try:
+        with open(CAMERA_FILE_PATH, 'r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return []
+
+def save_camera_urls(camera_urls):
+    """Save camera URLs to the JSON file."""
+    with open(CAMERA_FILE_PATH, 'w') as file:
+        json.dump(camera_urls, file, indent=4)
+
+@app.route('/add_camera', methods=['POST'])
+def add_camera():
+    # Ensure the request content type is JSON
+    if request.content_type != 'application/json':
+        return jsonify({'error': 'Content-type must be application/json'}), 400
+
+    try:
+        data = request.json
+        app.logger.info(f"Request data: {data}")
+
+        if not data:
+            raise ValueError("No JSON data received")
+
+        camera_url = data.get('url')
+
+        if not camera_url:
+            raise ValueError("Invalid data: 'url' is required")
+
+        # Load existing camera URLs
+        camera_urls = load_camera_urls()
+
+        # Determine the next ID
+        next_id = max((camera['id'] for camera in camera_urls), default=1) + 1
+
+        # Add the new camera with the next ID
+        camera_urls.append({
+            'id': next_id,
+            'url': camera_url
+        })
+
+        # Save updated list back to the JSON file
+        save_camera_urls(camera_urls)
+
+        return jsonify({'message': 'Camera added successfully', 'camera': {'id': next_id, 'url': camera_url}}), 200
+
+    except ValueError as e:
+        app.logger.error(f"ValueError: {str(e)}")
+        return jsonify({'error': str(e)}), 400
+
+    except Exception as e:
+        app.logger.error(f"Exception: {str(e)}")
+        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
+
+@app.route('/get_cameras', methods=['GET'])
+def get_cameras():
+    try:
+        camera_urls = load_camera_urls()
+        return jsonify({'cameras': camera_urls})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000,use_reloader=False)
+    app.run(debug=True, host='0.0.0.0', port=5000)
+    # use_reloader=False
