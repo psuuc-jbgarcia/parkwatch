@@ -305,47 +305,56 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function fetchCameras() {
         fetch('/video_feed_parking_space_2')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`Server responded with status ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            const runManagement2ModalBtn = document.getElementById('run-management-2-modal-btn');
-            const cameraContainer = document.getElementById('camera-feeds-container');
-            
-            if (data.error) {
-                console.error('No cameras available:', data.error);
-                cameraContainer.innerHTML = "<p>No cameras available.</p>";
-                runManagement2ModalBtn.style.display = 'none'; // Hide the button
-            } else {
-                console.log(data);
-                cameraContainer.innerHTML = '';
-                let camerasAvailable = false;
-
-                data.forEach(camera => {
-                    if (camera.id === 2) {
-                        const videoElement = document.createElement('img');
-                        videoElement.src = '/video_feed/2';
-                        videoElement.width = "640";
-                        videoElement.height = "480";
-                        cameraContainer.appendChild(videoElement);
-                        camerasAvailable = true;
-                    }
-                });
-
-                if (camerasAvailable) {
-                    runManagement2ModalBtn.style.display = 'block'; // Show the button
-                } else {
-                    runManagement2ModalBtn.style.display = 'none'; // Hide the button
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Server responded with status ${response.status}`);
                 }
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching cameras:', error);
-            document.getElementById('camera-feeds-container').innerHTML = "<p>No camera Available.</p>";
-            document.getElementById('run-management-2-modal-btn').style.display = 'none'; // Hide the button
-        });
+                return response.json();
+            })
+            .then(data => {
+                const runManagement2ModalBtn = document.getElementById('run-management-2-modal-btn');
+                const cameraContainer = document.getElementById('camera-feeds-container');
+                const infoBoxesContainer = document.querySelector('.info-boxes2'); // Select the info boxes container
+                
+                if (data.error) {
+                    console.error('No cameras available:', data.error);
+                    cameraContainer.innerHTML = "<p>No cameras available.</p>";
+                    runManagement2ModalBtn.style.display = 'none'; // Hide the button
+                    infoBoxesContainer.style.display = 'none'; // Hide the info boxes container
+                } else {
+                    console.log(data);
+                    cameraContainer.innerHTML = '';
+                    let camerasAvailable = false;
+    
+                    data.forEach(camera => {
+                        if (camera.id === 2) {
+                            const videoElement = document.createElement('img');
+                            videoElement.src = '/video_feed/2';
+                            videoElement.width = "640";
+                            videoElement.height = "480";
+                            cameraContainer.appendChild(videoElement);
+                            camerasAvailable = true;
+                        }
+                    });
+    
+                    if (camerasAvailable) {
+                        runManagement2ModalBtn.style.display = 'block'; // Show the button
+                        infoBoxesContainer.style.display = 'block'; // Show the info boxes container (if it was hidden previously)
+                    } else {
+                        runManagement2ModalBtn.style.display = 'none'; // Hide the button
+                        infoBoxesContainer.style.display = 'none'; // Hide the info boxes container
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching cameras:', error);
+                document.getElementById('camera-feeds-container').innerHTML = "<p>No camera available.</p>";
+                document.getElementById('run-management-2-modal-btn').style.display = 'none'; // Hide the button
+                document.querySelector('.info-boxes2').style.display = 'none'; // Hide the info boxes container
+            });
     }
+    
+    // Call the function to initialize on page load or at an appropriate time
+    fetchCameras();
+    
 });

@@ -1,93 +1,300 @@
-import json
-import cv2
-from flask import Response, jsonify, request
+<!DOCTYPE html>
+<html lang="en">
 
-CAMERA_FILE_PATH = 'camera_urls.json'
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ParkWatch Dashboard</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <!-- SweetAlert2 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+    .info-box2 {
+            margin-bottom: 15px;
+        }
+        .card-body img {
+            width: 50px;
+            height: 50px;
+            margin-right: 15px;
+        }
+        .cctv-container2 {
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
 
-def load_camera_urls():
-    """Load camera URLs from the JSON file."""
-    try:
-        with open(CAMERA_FILE_PATH, 'r') as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return []
+        .cctv-container2{
+            width: 100%;
+    max-width: 1200px;
+    height: auto;
+    border-radius: 10px;
+         }
+    </style>
+</head>
 
-def save_camera_urls(camera_urls):
-    """Save camera URLs to the JSON file."""
-    with open(CAMERA_FILE_PATH, 'w') as file:
-        json.dump(camera_urls, file, indent=4)
+<body>
+    <!-- Header Section -->
+    <div class="header-section">
+        <a class="navbar-brand" href="#">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="ParkWatch Logo" height="100px">
+        </a>
+        <nav class="navbar navbar-expand-lg navbar-dark">
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showReportIncidentModal()">Report Incident</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="generateReport()">Generate Report</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showInstructions()">Run Management</a>
+                    </li>
+                    <li class="nav-item">
+                        <!-- Add Camera Button Trigger -->
+                        <a class="nav-link" href="#" data-toggle="modal" data-target="#cameraModal">Add Camera</a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+        <div class="current-time" id="current-date-time"></div>
+    </div>
 
-def get_video_source(camera_id):
-    try:
-        with open(CAMERA_FILE_PATH) as f:
-            cameras = json.load(f)
-        for camera in cameras:
-            if camera['id'] == camera_id:
-                return camera['url']
-        return None
-    except Exception as e:
-        print(f"Error reading JSON file: {e}")
-        return None
-
-def generate_frames(video_source):
-    cap = cv2.VideoCapture(video_source)
-    while True:
-        success, frame = cap.read()
-        if not success:
-            break
-        else:
-            # Encode as JPEG
-            _, buffer = cv2.imencode('.jpg', frame)
-            frame = buffer.tobytes()
-            # Yield the frame as bytes
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
-def add_camera():
-    """Add a new camera from a JSON POST request."""
-    if request.content_type != 'application/json':
-        return jsonify({'error': 'Content-type must be application/json'}), 400
-
-    try:
-        data = request.json
-        if not data:
-            raise ValueError("No JSON data received")
-
-        camera_url = data.get('url')
-        if not camera_url:
-            raise ValueError("Invalid data: 'url' is required")
-
-        # Load existing camera URLs
-        camera_urls = load_camera_urls()
-
-        # Determine the next ID
-        next_id = max((camera['id'] for camera in camera_urls), default=1) + 1
-
-        # Add the new camera with the next ID
-        camera_urls.append({
-            'id': next_id,
-            'url': camera_url
-        })
-
-        # Save updated list back to the JSON file
-        save_camera_urls(camera_urls)
-
-        return jsonify({'message': 'Camera added successfully', 'camera': {'id': next_id, 'url': camera_url}}), 200
-
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-
-    except Exception as e:
-        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
-
-def get_cameras():
-    """Fetch all camera URLs from the JSON file."""
-    try:
-        cameras = load_camera_urls()
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <!-- Tabs Navigation -->
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="parking-tab" data-toggle="tab" href="#parking" role="tab" aria-controls="parking" aria-selected="true">Parking Interface</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="parking-tab-v2" data-toggle="tab" href="#parking-v2" role="tab" aria-controls="parking-v2" aria-selected="false">Parking Interface 2 </a>
+            </li>
+            
+            <!-- <li class="nav-item">
+                <a class="nav-link" id="comments-tab" data-toggle="tab" href="#comments" role="tab" aria-controls="comments" aria-selected="false">User Comments</a>
+            </li> -->
+        </ul>
+       
         
-        if not cameras:
-            return jsonify({"error": "No cameras available"}), 404
+        <!-- Tabs Content -->
+        <div class="tab-content" id="myTabContent">
+            <!-- Parking Interface Tab -->
+            <div class="tab-pane fade show active" id="parking" role="tabpanel" aria-labelledby="parking-tab">
+                <div class="main-content">
+                    <!-- Info Boxes Section -->
+                    <div class="info-boxes">
+                        <div class="info-box">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body d-flex align-items-center">
+                                    <img src="../static/total-vehicles-icon.png" alt="Total Vehicles">
+                                    <div>
+                                        <h2 id="total-vehicles">9</h2>
+                                        <p>Total Vehicles Parked</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="info-box">
+                            <div class="card bg-success text-white">
+                                <div class="card-body d-flex align-items-center">
+                                    <img src="/static/parking-available-icon.png" alt="Parking Available">
+                                    <div>
+                                        <h2 id="parking-available">0</h2>
+                                        <p>Parking Slot Available</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="info-box">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body d-flex align-items-center">
+                                    <img src="/static/slots-reserved-icon.png" alt="Slots Reserved">
+                                    <div>
+                                        <h2 id="slots-reserved">0</h2>
+                                        <p>Total Slot Reserved</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-        return jsonify(cameras), 200
-    except Exception as e:
-        return jsonify({"error": "Failed to load cameras"}), 500
+                    <!-- CCTV Section -->
+                    <div class="cctv-container">
+                        <div>
+                            <img id="video_feed" src="{{ url_for('video_feed', camera_id=1) }}" alt="CCTV Feed" class="img-fluid">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- User Comments Tab -->
+            <div class="tab-pane fade" id="comments" role="tabpanel" aria-labelledby="comments-tab">
+                <div class="container mt-4">
+                    <h4>User Comments</h4>
+                    <ul id="user-comments-list" class="list-group">
+                        <!-- Comments will be inserted here dynamically -->
+                    </ul>
+                </div>
+                
+                <div class="container mt-4">
+                    <h4>Incidents</h4>
+                    <ul id="incidents-container" class="list-group">
+                        <!-- Incidents will be inserted here dynamically -->
+                    </ul>
+                </div>
+                
+            </div>
+            <div class="tab-pane fade" id="parking-v2" role="tabpanel" aria-labelledby="parking-tab-v2">
+                <div class="container mt-4">
+                    <div class="row">
+                        <!-- Info Boxes Section -->
+                        <div class="col-md-4">
+                            <div class="info-boxes2">
+                                <div class="info-box2">
+                                    <div class="card bg-primary text-white">
+                                        <div class="card-body d-flex align-items-center">
+                                            <img src="../static/total-vehicles-icon.png" alt="Total Vehicles">
+                                            <div>
+                                                <h2 id="total-vehicles2">0</h2>
+                                                <p>Total Vehicles Parked</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="info-box2">
+                                    <div class="card bg-success text-white">
+                                        <div class="card-body d-flex align-items-center">
+                                            <img src="/static/parking-available-icon.png" alt="Parking Available">
+                                            <div>
+                                                <h2 id="parking-available2">0</h2>
+                                                <p>Parking Slot Available</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="info-box2">
+                                    <div class="card bg-warning text-white">
+                                        <div class="card-body d-flex align-items-center">
+                                            <img src="/static/slots-reserved-icon.png" alt="Slots Reserved">
+                                            <div>
+                                                <h2 id="slots-reserved2">0</h2>
+                                                <p>Total Slot Reserved</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+            
+                        <!-- CCTV Section -->
+                        <div class="col-md-8">
+                            <div class="cctv-container2">
+                                <div id="camera-feeds-container">
+                                    <!-- CCTV feeds will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            
+            
+        </div>
+    </div>
+<!-- Modal Structure -->
+<div class="modal fade" id="cameraModal" tabindex="-1" aria-labelledby="cameraModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cameraModalLabel">Add a New Camera</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Camera Form -->
+                <form id="camera-form">
+                    <div class="form-group mb-3">
+                        <label for="camera_url">Camera URL:</label>
+                        <input type="text" id="camera_url" class="form-control" placeholder="Enter camera URL" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Camera</button>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Modal for Reporting an Incident -->
+    <div id="report-incident-modal" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Report an Incident</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="incident-report-form">
+                        <div class="form-group">
+                            <textarea id="incident-description" class="form-control" placeholder="Describe the incident here" required></textarea>
+                        </div>
+                        <input type="hidden" id="incident-timestamp" value="">
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="submitIncidentReport()">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+  <!-- Modal for Instructions -->
+<div id="instructions-modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Instructions</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>1. **Left Click**: Add a new parking space or rectangle.</p>
+                <p>2. **Right Click**: Delete an existing parking space or rectangle. (Single click for landscape, double click for portrait)</p>
+                <p>3. **Middle Click**: Toggle the reservation status of a parking space.</p>
+                <p>4. **Press 'D' Key**: Toggle delete mode. When in delete mode, right-click will delete the selected parking space.</p>
+                <p>5. **Press 'S' Key**: Save the current configuration.</p>
+                <p>6. **Press 'R' Key**: Resize the parking space. You need to drag it to adjust the size.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="runManagement()">Run Management</button>
+                <!-- Run Management 2 Button -->
+                <button id="run-management-2-modal-btn" class="btn btn-secondary" onclick="runManagement2()">Run Management 2</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+    <!-- SweetAlert2 JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+     
+</body>
+
+</html>

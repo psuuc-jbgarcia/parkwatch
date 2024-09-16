@@ -2,11 +2,9 @@ import cv2
 import pickle
 import numpy as np
 import json
-
-# File path for parking positions and camera URLs
+# File path for parking positions
 parking_file = 'CarParkPos2'
 camera_file = 'camera_urls.json'
-
 # Function to load parking positions
 def load_pos_list():
     try:
@@ -16,6 +14,8 @@ def load_pos_list():
         print(f"Warning: {parking_file} not found.")
         return []
 
+# Initialize or load parking positions
+posList = load_pos_list()
 # Function to load camera URLs
 def load_camera_urls():
     try:
@@ -24,7 +24,6 @@ def load_camera_urls():
     except FileNotFoundError:
         print(f"Warning: {camera_file} not found.")
         return []
-
 # Function to get the camera URL by ID
 def get_camera_url(camera_id):
     camera_urls = load_camera_urls()
@@ -32,13 +31,6 @@ def get_camera_url(camera_id):
         if camera['id'] == camera_id:
             return camera['url']
     return 'carPark.mp4'  # Default URL if ID not found
-
-# Load parking positions
-posList = load_pos_list()
-
-# Load camera URL for ID 2
-cctv_url = get_camera_url(2)
-
 # Ensure all positions are in the correct format
 for i in range(len(posList)):
     if len(posList[i]) == 2:
@@ -46,10 +38,10 @@ for i in range(len(posList)):
     elif len(posList[i]) == 3:
         posList[i] = (*posList[i], 'rect', [], (107, 107))
     elif len(posList[i]) == 4:
-        posList[i] = (*posList[i], [], (107, 107))
+        posList[i] = (*posList[i], [],(107, 107))
     elif len(posList[i]) == 5:
-        posList[i] = (*posList[i], (107, 107))
-
+        posList[i] = (*posList[i],(107, 107))
+cctv_url = get_camera_url(2)
 # Counter for the number of parking spaces
 space_counter = len(posList)
 
@@ -177,22 +169,23 @@ def mouseClick(events, x, y, flags, params):
         for i, pos in enumerate(posList):
             px, py, reserved, shape, points, size = pos
             if shape == 'rect' and px < x < px + size[0] and py < y < py + size[1]:
-                posList[i] = (px, py, reserved, 'portrait', points, size)
+                posList[i] = (px, py, reserved, 'portrait', points, (48, 107))
                 save_pos_list()
                 break
             elif shape == 'portrait' and px < x < px + size[0] and py < y < py + size[1]:
-                posList[i] = (px, py, reserved, 'poly', points, size)
+                posList[i] = (px, py, reserved, 'rect', points, (107, 48))
                 save_pos_list()
                 break
             elif shape == 'poly' and cv2.pointPolygonTest(np.array(points, dtype=np.int32), (x, y), False) >= 0:
-                posList[i] = (px, py, reserved, 'rect', points, size)
+                posList.pop(i)
+                space_counter -= 1
                 save_pos_list()
                 break
     elif events == cv2.EVENT_MBUTTONDOWN:
         for i, pos in enumerate(posList):
             px, py, reserved, shape, points, size = pos
             if shape == 'rect' and px < x < px + size[0] and py < y < py + size[1]:
-                posList[i] = (px, py, not reserved, shape, points, size)
+                posList[i] = (px, py, not reserved,shape, points, size)
                 save_pos_list()
                 break
             elif shape == 'portrait' and px < x < px + size[0] and py < y < py + size[1]:
@@ -284,3 +277,4 @@ while True:
 # Release video capture and close all windows
 cap.release()
 cv2.destroyAllWindows()
+

@@ -240,3 +240,12 @@ def get_cameras():
         return jsonify(cameras), 200
     except Exception as e:
         return jsonify({"error": "Failed to load cameras"}), 500
+def get_parking_info2():
+    global posList, free_spaces, reserved_spaces
+    total_vehicles = len(posList) - free_spaces
+
+    return jsonify({
+        'totalVehicles': total_vehicles,
+        'parkingAvailable': free_spaces,
+        'slotsReserved': reserved_spaces
+    })

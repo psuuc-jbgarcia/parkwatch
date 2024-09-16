@@ -14,7 +14,7 @@ import json
 import pytz
 import datetime
 import threading
-from camera_manager import load_camera_urls, save_camera_urls, get_video_source, generate_frames, add_camera, get_cameras
+from camera_manager import load_camera_urls, save_camera_urls, get_video_source, generate_frames, add_camera, get_cameras,get_parking_info2
 from incident_manager import report_incident, save_full_parking_timestamp, fetch_comments
 
 app = Flask(__name__)
@@ -446,6 +446,9 @@ def video_feed_parking_space_2():
                         mimetype='multipart/x-mixed-replace; boundary=frame')
     else:
         return "Video source not found.", 404
+@app.route('/get_parking_info2', methods=['GET'])
+def parking_info_route():
+    return get_parking_info2()
 
 
 
