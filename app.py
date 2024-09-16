@@ -14,6 +14,9 @@ import json
 import pytz
 import datetime
 import threading
+from camera_manager import load_camera_urls, save_camera_urls, get_video_source, generate_frames, add_camera, get_cameras
+from incident_manager import report_incident, save_full_parking_timestamp, fetch_comments
+
 app = Flask(__name__)
 # Path to your trained YOLO model
 model_path = 'license_plate_detector.pt'
@@ -413,183 +416,28 @@ def run_management2():
     except Exception as e:
         print(f"Error running management script: {e}")
         return str(e), 500
-
+    
 @app.route('/report_incident', methods=['POST'])
-def report_incident():
-    """
-    Handle incident report submission.
-    """
-    try:
-        data = request.json
-        description = data.get('description')
-        timestamp = data.get('timestamp')
+def report_incident_route():
+    return report_incident()
 
-        if not description or not timestamp:
-            return jsonify({'error': 'Invalid input'}), 400
-
-        # Save the incident report to Firestore
-        incident_ref = db.collection('admin').add({
-            'description': description,
-            'timestamp': timestamp
-        })
-
-        return jsonify({'message': 'Incident report submitted successfully'}), 200
-
-    except Exception as e:
-        print(f'Error: {e}')
-        return jsonify({'error': 'Internal server error'}), 500
 @app.route('/save_full_parking_timestamp', methods=['POST'])
-def save_full_parking_timestamp():
-    timestamp = request.json.get('timestamp')
-
-    if not timestamp:
-        return jsonify({'error': 'No timestamp provided'}), 400
-
-    # Read existing data from the JSON file
-    if os.path.exists(FULL_PARKING_TIMESTAMPS_FILE):
-        try:
-            with open(FULL_PARKING_TIMESTAMPS_FILE, 'r') as file:
-                timestamps = json.load(file)
-        except json.JSONDecodeError:
-            # Handle the case where the file is empty or corrupted
-            timestamps = []
-    else:
-        timestamps = []
-
-    # Append the new timestamp
-    timestamps.append(timestamp)
-
-    # Save the updated list back to the JSON file
-    with open(FULL_PARKING_TIMESTAMPS_FILE, 'w') as file:
-        json.dump(timestamps, file)
+def save_full_parking_timestamp_route():
+    return save_full_parking_timestamp()
 
 @app.route('/fetch_comments', methods=['GET'])
-def fetch_comments():
-    try:
-        admin_collection_ref = db.collection('admin')
-        incidents = []
-        
-        # Loop through each document in the 'admin' collection
-        for incident_doc in admin_collection_ref.stream():
-            incident_data = incident_doc.to_dict()
-            incident_id = incident_doc.id
-
-            # Fetch description and timestamp from the incident document
-            description = incident_data.get('description', 'No description available')
-            timestamp = incident_data.get('timestamp', 'Unknown')
-            
-            # Fetch comments from the 'comments' subcollection ordered by timestamp
-            comments_ref = admin_collection_ref.document(incident_id).collection('comments').order_by('timestamp')
-            comments = []
-            for comment in comments_ref.stream():
-                comment_data = comment.to_dict()
-                comments.append(comment_data)
-            
-            # Build the response with incident details and ordered comments
-            incidents.append({
-                'incident_id': incident_id,
-                'description': description,
-                'timestamp': timestamp,
-                'comments': comments
-            })
-
-        # Return incidents with their respective comments
-        return jsonify(incidents)
-    except Exception as e:
-        print(f"Error fetching comments: {e}")
-        return jsonify({'error': str(e)}), 500
-
-
-
-def load_camera_urls():
-    """Load camera URLs from the JSON file."""
-    try:
-        with open(CAMERA_FILE_PATH, 'r') as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return []
-
-def save_camera_urls(camera_urls):
-    """Save camera URLs to the JSON file."""
-    with open(CAMERA_FILE_PATH, 'w') as file:
-        json.dump(camera_urls, file, indent=4)
+def fetch_comments_route():
+    return fetch_comments()
 
 @app.route('/add_camera', methods=['POST'])
-def add_camera():
-    # Ensure the request content type is JSON
-    if request.content_type != 'application/json':
-        return jsonify({'error': 'Content-type must be application/json'}), 400
+def add_camera_route():
+    return add_camera()
 
-    try:
-        data = request.json
-        app.logger.info(f"Request data: {data}")
+@app.route('/video_feed_parking_space_2', methods=['GET'])
+def get_cameras_route():
+    return get_cameras()
 
-        if not data:
-            raise ValueError("No JSON data received")
-
-        camera_url = data.get('url')
-
-        if not camera_url:
-            raise ValueError("Invalid data: 'url' is required")
-
-        # Load existing camera URLs
-        camera_urls = load_camera_urls()
-
-        # Determine the next ID
-        next_id = max((camera['id'] for camera in camera_urls), default=1) + 1
-
-        # Add the new camera with the next ID
-        camera_urls.append({
-            'id': next_id,
-            'url': camera_url
-        })
-
-        # Save updated list back to the JSON file
-        save_camera_urls(camera_urls)
-
-        return jsonify({'message': 'Camera added successfully', 'camera': {'id': next_id, 'url': camera_url}}), 200
-
-    except ValueError as e:
-        app.logger.error(f"ValueError: {str(e)}")
-        return jsonify({'error': str(e)}), 400
-
-    except Exception as e:
-        app.logger.error(f"Exception: {str(e)}")
-        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
-
-
-@app.route('/video_feed/2', methods=['GET'])
-def get_cameras():
-    try:
-        # Open and read the camera URLs from the JSON file
-        with open('camera_urls.json', 'r') as f:
-            cameras = json.load(f)
-        
-        # Check if the camera list is empty
-        if not cameras:
-            return jsonify({"error": "No cameras available"}), 404
-
-        print("Loaded cameras:", cameras)  # Print to console for debugging
-
-        # Return the list of cameras as a JSON response
-        return jsonify(cameras), 200
-    except Exception as e:
-        print(f"Error loading cameras: {e}")
-        return jsonify({"error": "Failed to load cameras"}), 500
-
-
-def get_video_source(camera_id):
-    try:
-        with open('camera_urls.json') as f:
-            cameras = json.load(f)
-        for camera in cameras:
-            if camera['id'] == camera_id:
-                return camera['url']
-        return None
-    except Exception as e:
-        print(f"Error reading JSON file: {e}")
-        return None
-@app.route('/video_feed_parking_space_2')
+@app.route('/video_feed/2')
 def video_feed_parking_space_2():
     """Video streaming route for parking space 2."""
     video_source = get_video_source(2)  # Camera ID 2 for parking space 2
@@ -599,19 +447,9 @@ def video_feed_parking_space_2():
     else:
         return "Video source not found.", 404
 
-def generate_frames(video_source):
-    cap = cv2.VideoCapture(video_source)
-    while True:
-        success, frame = cap.read()
-        if not success:
-            break
-        else:
-            # Encode as JPEG
-            _, buffer = cv2.imencode('.jpg', frame)
-            frame = buffer.tobytes()
-            # Yield the frame as bytes
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+
+
             
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

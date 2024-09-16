@@ -304,7 +304,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function fetchCameras() {
-        fetch('/video_feed/2')
+        fetch('/video_feed_parking_space_2')
         .then(response => {
             if (!response.ok) {
                 throw new Error(`Server responded with status ${response.status}`);
@@ -327,7 +327,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 data.forEach(camera => {
                     if (camera.id === 2) {
                         const videoElement = document.createElement('img');
-                        videoElement.src = '/video_feed_parking_space_2';
+                        videoElement.src = '/video_feed/2';
                         videoElement.width = "640";
                         videoElement.height = "480";
                         cameraContainer.appendChild(videoElement);
