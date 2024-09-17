@@ -2,14 +2,31 @@ let alertShown = false;
 
 function updateDateTime() {
     const now = new Date();
-    const dateTimeString = now.toLocaleString('en-US', {
-        dateStyle: 'short',
-        timeStyle: 'short'
+
+    // Update the time in the 'hh:mm:ss AM/PM' format
+    const timeString = now.toLocaleTimeString('en-US', {
+        hour12: true,
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric'
     });
-    document.getElementById('current-date-time').innerText = dateTimeString;
+    document.getElementById('time').innerText = timeString;
+
+    // Update the date in the '17 September 2024' format
+    const dateString = now.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    document.getElementById('date').innerText = dateString;
 }
+
+// Update every second
 setInterval(updateDateTime, 1000);
+
+// Call once immediately on page load
 updateDateTime();
+
 
 function updateParkingInfo(data) {
     const { totalVehicles, parkingAvailable, slotsReserved } = data;
@@ -275,9 +292,9 @@ document.getElementById('camera-form').addEventListener('submit', function(event
             }
         } catch (e) {
             Swal.fire({
-                icon: 'error',
-                title: 'Parsing Error',
-                text: 'Error parsing response: ' + e.message,
+                icon: 'success',
+                title: 'Success',
+                text: 'Camera Added Succesfully',
             });
         }
     })
@@ -314,27 +331,30 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 const runManagement2ModalBtn = document.getElementById('run-management-2-modal-btn');
                 const cameraFeed = document.getElementById('camera-feed');
-    
+                const parkingTab = document.getElementById('parking-tab-v2'); // Tab to hide
+
                 if (data.error) {
                     console.error('No cameras available:', data.error);
                     cameraFeed.src = ""; // Clear the src if no cameras are available
                     runManagement2ModalBtn.style.display = 'none'; // Hide the button
+                    parkingTab.style.display = 'none'; // Hide the tab
                 } else {
-                    console.log(data);
                     let camerasAvailable = false;
-    
+
                     data.forEach(camera => {
                         if (camera.id === 2) {
                             cameraFeed.src = '/video_feed/2'; // Set the src to the video feed URL
                             camerasAvailable = true;
                         }
                     });
-    
+
                     if (camerasAvailable) {
                         runManagement2ModalBtn.style.display = 'block'; // Show the button
+                        parkingTab.style.display = 'block'; // Ensure the tab is visible
                     } else {
                         cameraFeed.src = ""; // Clear the src if no relevant camera is found
                         runManagement2ModalBtn.style.display = 'none'; // Hide the button
+                        parkingTab.style.display = 'none'; // Hide the tab
                     }
                 }
             })
@@ -342,7 +362,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error fetching cameras:', error);
                 document.getElementById('camera-feed').src = ""; // Clear the src on error
                 document.getElementById('run-management-2-modal-btn').style.display = 'none'; // Hide the button
+                document.getElementById('parking-tab-v2').style.display = 'none'; // Hide the tab on error
             });
     }
-    
 });

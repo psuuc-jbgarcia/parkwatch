@@ -124,48 +124,59 @@ def check_spaces(img, imgThres):
     cv2.putText(img, f'Free: {spaces}/{len(posList)}', (50, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 200, 0), 1, lineType=cv2.LINE_AA)
     cv2.putText(img, f'Reserved: {reserved_spaces}', (50, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, lineType=cv2.LINE_AA)
 
+import cv2
+import numpy as np
+import pickle
+
 def generate_frames(video_source):
     cap = cv2.VideoCapture(video_source)
+    
     while True:
         success, frame = cap.read()
+        
         if not success:
-            break
-        else:
-            # Preprocess the frame
-            imgGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            imgBlur = cv2.GaussianBlur(imgGray, (3, 3), 1)
+            print("Failed to grab frame, retrying...")
+            cap.release()  # Release the current capture
+            cap = cv2.VideoCapture(video_source, cv2.CAP_FFMPEG)  # Reinitialize the capture
+            continue
+        
+        # Preprocess the frame
+        imgGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        imgBlur = cv2.GaussianBlur(imgGray, (3, 3), 1)
 
-            # Get threshold values
-            val1 = cv2.getTrackbarPos("Val1", "Vals")
-            val2 = cv2.getTrackbarPos("Val2", "Vals")
-            val3 = cv2.getTrackbarPos("Val3", "Vals")
+        # Get threshold values
+        val1 = cv2.getTrackbarPos("Val1", "Vals")
+        val2 = cv2.getTrackbarPos("Val2", "Vals")
+        val3 = cv2.getTrackbarPos("Val3", "Vals")
 
-            # Ensure odd values for threshold parameters
-            if val1 % 2 == 0: val1 += 1
-            if val3 % 2 == 0: val3 += 1
+        # Ensure odd values for threshold parameters
+        if val1 % 2 == 0: val1 += 1
+        if val3 % 2 == 0: val3 += 1
 
-            # Apply adaptive threshold and blur
-            imgThres = cv2.adaptiveThreshold(imgBlur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, val1, val2)
-            imgThres = cv2.medianBlur(imgThres, val3)
-            kernel = np.ones((3, 3), np.uint8)
-            imgThres = cv2.dilate(imgThres, kernel, iterations=1)
+        # Apply adaptive threshold and blur
+        imgThres = cv2.adaptiveThreshold(imgBlur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, val1, val2)
+        imgThres = cv2.medianBlur(imgThres, val3)
+        kernel = np.ones((3, 3), np.uint8)
+        imgThres = cv2.dilate(imgThres, kernel, iterations=1)
 
-            # Check for free spaces and draw rectangles
-            check_spaces(frame, imgThres)
+        # Check for free spaces and draw rectangles
+        check_spaces(frame, imgThres)
 
-            # Encode image as jpg format
-            ret, buffer = cv2.imencode('.jpg', frame)
-            if not ret:
-                print("Failed to encode frame")
-                break
-            frame_bytes = buffer.tobytes()
+        # Encode image as jpg format
+        ret, buffer = cv2.imencode('.jpg', frame)
+        if not ret:
+            print("Failed to encode frame")
+            continue
+        
+        frame_bytes = buffer.tobytes()
 
-            # Serialize posList only if necessary
-            pos_list_serialized = pickle.dumps(posList)
+        # Serialize posList only if necessary
+        pos_list_serialized = pickle.dumps(posList)
 
-            # Yielding the current state of posList along with frame
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n' + pos_list_serialized + b'\r\n')
+        # Yielding the current state of posList along with frame
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n' + pos_list_serialized + b'\r\n')
+
 
 def load_camera_urls():
     """Load camera URLs from the JSON file."""

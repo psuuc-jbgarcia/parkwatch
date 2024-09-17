@@ -40,7 +40,7 @@ plate_detector = LicensePlateDetector(model_path)
 # cap1_web.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000)  # Set a longer timeout
 # File path for parking positions
 parking_file = 'CarParkPos'
-timeout_ms = 60000  # Adjust as needed
+timeout_ms = 60000  # Adjust as needed rtsp://admin:jerico12@192.168.100.159:5454/stream1
 vid1 = 'carPark.mp4'
 cap1_web = cv2.VideoCapture(vid1, cv2.CAP_FFMPEG)
 cap2_web = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
@@ -455,5 +455,5 @@ def parking_info_route():
 
             
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000,use_reloader=False)
     # use_reloader=False

@@ -11,17 +11,21 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
-   .cctv-container2 {
-    width: 100%;
-    max-width: 100%;
-    height: auto; /* Adjust height as needed */
-    border-radius: 10px;
-    overflow: hidden; /* Ensure content doesn’t overflow */
+.time-box {
+    color: white; /* White text */
+    font-weight: bold; /* Bold text */
+    border-radius: 5px; /* Rounded corners */
+    border: 1px solid white; /* Slimmer white border */
+    display: inline-block; /* Ensures the box wraps around the content */
+    font-size: 12px; /* Smaller font size */
+    padding: 5px 10px; /* Reduced padding */
+    max-width: 200px; /* Limit the maximum width */
+    text-align: center; /* Center the text inside */
 }
 
-#camera-feeds-container {
-    width: 100%;
-    height: auto; /* Adjust height as needed */
+
+.cctv-container2 img {
+    border-radius: 10px; /* Optional: Rounded corners for the video itself */
 }
 
     </style>
@@ -36,9 +40,7 @@
         <nav class="navbar navbar-expand-lg navbar-dark">
             <div class="collapse navbar-collapse">
                 <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">Home</a>
-                    </li>
+                  
                     <li class="nav-item">
                         <a class="nav-link" href="#" onclick="showReportIncidentModal()">Report Incident</a>
                     </li>
@@ -55,8 +57,13 @@
                 </ul>
             </div>
         </nav>
-        <div class="current-time" id="current-date-time"></div>
-    </div>
+        <div class="time-box p-2">
+            <div class="title">Philippine Standard Time</div>
+            <div class="time" id="time">09:48:09 AM</div>
+            <div class="date" id="date">17 September 2024</div>
+        </div>
+        
+            </div>
 
     <!-- Main Content -->
     <div class="container mt-4">
@@ -181,18 +188,11 @@
                         </div>
                     </div>
 
-                    <!-- CCTV Section -->
-                    <!-- <div class="cctv-container2">
-                        <div>
-                            <div id="camera-feeds-container" src="{{ url_for('video_feed', camera_id=1) }}" alt="CCTV Feed" class="img-fluid">
-                        </div>
-                    </div>
-                </div> -->
-            
-                        <!-- CCTV Section -->
+           
                  
                         <div class="cctv-container2">
                             <img id="camera-feed" src="" alt="CCTV Feed" class="img-fluid">
+
                         </div>
                         
                     </div>
@@ -291,79 +291,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
-     
+    <script src="{{ url_for('static', filename='js/script2.js') }}"></script>
+
 </body>
-<script>
-   let isAlertShown = false;
-   function updateParkingData(data) {
-    // Ensure data has the correct properties
-    const { totalVehicles = 'N/A', parkingAvailable = 'N/A', slotsReserved = 'N/A' } = data;
 
-    document.getElementById('total-vehicles2').innerText = totalVehicles;
-    document.getElementById('parking-available2').innerText = parkingAvailable;
-    document.getElementById('slots-reserved2').innerText = slotsReserved;
-
-    if (parseInt(parkingAvailable, 10) === 0 && !isAlertShown) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Alert',
-            text: 'Parking slots are full!',
-            showConfirmButton: true
-        });
-        isAlertShown = true;
-
-        // Save the timestamp to the backend
-        saveFullParkingTimestamp();
-    } else if (parseInt(parkingAvailable, 10) > 0) {
-        isAlertShown = false;
-    }
-}
-
-function saveFullParkingTimestamp() {
-    const now = new Date();
-    const offset = 8 * 60;
-    const localTime = new Date(now.getTime() + offset * 60 * 1000);
-    const timestamp = localTime.toISOString().replace('Z', '+08:00');
-
-    fetch('/save_full_parking_timestamp2', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ timestamp })
-    })
-    .then(response => {
-        if (response.ok) {
-            console.log('Timestamp saved successfully.');
-        } else {
-            console.error('Failed to save timestamp.');
-        }
-    })
-    .catch(error => {
-        console.error('Error saving timestamp:', error);
-    });
-}
-
-function fetchParkingData() {
-    fetch('/get_parking_info2')  // Ensure this matches your Flask route
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            }
-            throw new Error('Network response was not ok');
-        })
-        .then(data => {
-            console.log('Fetched data:', data);  // Check what data is received
-            updateParkingData(data);
-        })
-        .catch(error => {
-            console.error('Error fetching parking information:', error);
-        });
-}
-
-
-fetchParkingData();
-setInterval(fetchParkingData, 1000);
-
-</script>
 </html>
