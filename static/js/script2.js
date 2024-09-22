@@ -16,37 +16,39 @@ function updateParkingData(data) {
      });
      isAlertShown = true;
 
-     // Save the timestamp to the backend
-     saveFullParkingTimestamp();
+     saveFullParkingTimestamp2();
  } else if (parseInt(parkingAvailable, 10) > 0) {
      isAlertShown = false;
  }
 }
 
-function saveFullParkingTimestamp() {
- const now = new Date();
- const offset = 8 * 60;
- const localTime = new Date(now.getTime() + offset * 60 * 1000);
- const timestamp = localTime.toISOString().replace('Z', '+08:00');
-
- fetch('/save_full_parking_timestamp2', {
-     method: 'POST',
-     headers: {
-         'Content-Type': 'application/json'
-     },
-     body: JSON.stringify({ timestamp })
- })
- .then(response => {
-     if (response.ok) {
-         console.log('Timestamp saved successfully.');
-     } else {
-         console.error('Failed to save timestamp.');
-     }
- })
- .catch(error => {
-     console.error('Error saving timestamp:', error);
- });
-}
+function saveFullParkingTimestamp2() {
+    const now = new Date();
+    const offset = 8 * 60;
+    const localTime = new Date(now.getTime() + offset * 60 * 1000);
+    const timestamp = localTime.toISOString().replace('Z', '+08:00');
+    
+    console.log("Sending timestamp:", timestamp); // Debug
+   
+    fetch('/save_full_parking_timestamp2', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ timestamp })
+    })
+    .then(response => {
+        if (response.ok) {
+            console.log('Timestamp saved successfully.');
+        } else {
+            console.error('Failed to save timestamp.');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving timestamp:', error);
+    });
+   }
+   
 
 function fetchParkingData() {
  fetch('/get_parking_info2')  // Ensure this matches your Flask route
@@ -68,3 +70,22 @@ function fetchParkingData() {
 
 fetchParkingData();
 setInterval(fetchParkingData, 1000);
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+function generateReport() {
+    const selectedDate = document.getElementById('report-date').value;
+
+    fetch(`/generate_report?date=${selectedDate}`)
+        .then(response => response.json())
+        .then(data => {
+            // Display the report using SweetAlert2
+            Swal.fire({
+                title: 'Parking Report',
+                text: data.report,
+                icon: 'info',
+            });
+
+            // Close the modal
+            $('#generateReportModal').modal('hide');
+        })
+        .catch(error => console.error('Error generating report:', error));
+}

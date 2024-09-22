@@ -11,23 +11,21 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
-.time-box {
-    color: white; /* White text */
-    font-weight: bold; /* Bold text */
-    border-radius: 5px; /* Rounded corners */
-    border: 1px solid white; /* Slimmer white border */
-    display: inline-block; /* Ensures the box wraps around the content */
-    font-size: 12px; /* Smaller font size */
-    padding: 5px 10px; /* Reduced padding */
-    max-width: 200px; /* Limit the maximum width */
-    text-align: center; /* Center the text inside */
-}
+        .time-box {
+            color: white; /* White text */
+            font-weight: bold; /* Bold text */
+            border-radius: 5px; /* Rounded corners */
+            border: 1px solid white; /* Slimmer white border */
+            display: inline-block; /* Ensures the box wraps around the content */
+            font-size: 12px; /* Smaller font size */
+            padding: 5px 10px; /* Reduced padding */
+            max-width: 200px; /* Limit the maximum width */
+            text-align: center; /* Center the text inside */
+        }
 
-
-.cctv-container2 img {
-    border-radius: 10px; /* Optional: Rounded corners for the video itself */
-}
-
+        .cctv-container2 img {
+            border-radius: 10px; /* Optional: Rounded corners for the video itself */
+        }
     </style>
 </head>
 
@@ -40,18 +38,16 @@
         <nav class="navbar navbar-expand-lg navbar-dark">
             <div class="collapse navbar-collapse">
                 <ul class="navbar-nav">
-                  
                     <li class="nav-item">
                         <a class="nav-link" href="#" onclick="showReportIncidentModal()">Report Incident</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#" onclick="generateReport()">Generate Report</a>
+                        <a class="nav-link" href="#" onclick="$('#generateReportModal').modal('show')">Generate Report</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#" onclick="showInstructions()">Run Management</a>
                     </li>
                     <li class="nav-item">
-                        <!-- Add Camera Button Trigger -->
                         <a class="nav-link" href="#" data-toggle="modal" data-target="#cameraModal">Add Camera</a>
                     </li>
                 </ul>
@@ -62,8 +58,32 @@
             <div class="time" id="time">09:48:09 AM</div>
             <div class="date" id="date">17 September 2024</div>
         </div>
-        
+    </div>
+<!-- Modal for Generating Report -->
+<div class="modal fade" id="generateReportModal" tabindex="-1" aria-labelledby="generateReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="generateReportModalLabel">Generate Parking Report</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
             </div>
+            <div class="modal-body">
+                <form id="report-form">
+                    <div class="form-group">
+                        <label for="report-date">Select Date:</label>
+                        <input type="date" id="report-date" class="form-control" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="generateReport()">Generate Report</button>
+            </div>
+        </div>
+    </div>
+</div>
 
     <!-- Main Content -->
     <div class="container mt-4">
@@ -75,13 +95,8 @@
             <li class="nav-item">
                 <a class="nav-link" id="parking-tab-v2" data-toggle="tab" href="#parking-v2" role="tab" aria-controls="parking-v2" aria-selected="false">Parking Interface 2 </a>
             </li>
-            
-            <!-- <li class="nav-item">
-                <a class="nav-link" id="comments-tab" data-toggle="tab" href="#comments" role="tab" aria-controls="comments" aria-selected="false">User Comments</a>
-            </li> -->
         </ul>
-       
-        
+
         <!-- Tabs Content -->
         <div class="tab-content" id="myTabContent">
             <!-- Parking Interface Tab -->
@@ -188,47 +203,40 @@
                         </div>
                     </div>
 
-           
-                 
-                        <div class="cctv-container2">
-                            <img id="camera-feed" src="" alt="CCTV Feed" class="img-fluid">
-
-                        </div>
-                        
+                    <div class="cctv-container2">
+                        <img id="camera-feed" src="" alt="CCTV Feed" class="img-fluid">
                     </div>
                 </div>
             </div>
-            
-            
-            
         </div>
     </div>
-<!-- Modal Structure -->
-<div class="modal fade" id="cameraModal" tabindex="-1" aria-labelledby="cameraModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="cameraModalLabel">Add a New Camera</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <!-- Camera Form -->
-                <form id="camera-form">
-                    <div class="form-group mb-3">
-                        <label for="camera_url">Camera URL:</label>
-                        <input type="text" id="camera_url" class="form-control" placeholder="Enter camera URL" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Add Camera</button>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+
+    <!-- Modal Structure -->
+    <div class="modal fade" id="cameraModal" tabindex="-1" aria-labelledby="cameraModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cameraModalLabel">Add a New Camera</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <!-- Camera Form -->
+                    <form id="camera-form">
+                        <div class="form-group mb-3">
+                            <label for="camera_url">Camera URL:</label>
+                            <input type="text" id="camera_url" class="form-control" placeholder="Enter camera URL" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Camera</button>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
     <!-- Modal for Reporting an Incident -->
     <div id="report-incident-modal" class="modal fade" tabindex="-1" role="dialog">
@@ -256,33 +264,31 @@
         </div>
     </div>
 
-  <!-- Modal for Instructions -->
-<div id="instructions-modal" class="modal fade" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Instructions</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p>1. **Left Click**: Add a new parking space or rectangle.</p>
-                <p>2. **Right Click**: Delete an existing parking space or rectangle. (Single click for landscape, double click for portrait)</p>
-                <p>3. **Middle Click**: Toggle the reservation status of a parking space.</p>
-                <p>4. **Press 'D' Key**: Toggle delete mode. When in delete mode, right-click will delete the selected parking space.</p>
-                <p>5. **Press 'S' Key**: Save the current configuration.</p>
-                <p>6. **Press 'R' Key**: Resize the parking space. You need to drag it to adjust the size.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" onclick="runManagement()">Run Management</button>
-                <!-- Run Management 2 Button -->
-                <button id="run-management-2-modal-btn" class="btn btn-secondary" onclick="runManagement2()">Run Management 2</button>
+    <!-- Modal for Instructions -->
+    <div id="instructions-modal" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Instructions</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>1. **Left Click**: Add a new parking space or rectangle.</p>
+                    <p>2. **Right Click**: Delete an existing parking space or rectangle. (Single click for landscape, double click for portrait)</p>
+                    <p>3. **Middle Click**: Toggle the reservation status of a parking space.</p>
+                    <p>4. **Press 'D' Key**: Toggle delete mode. When in delete mode, right-click will delete the selected parking space.</p>
+                    <p>5. **Press 'S' Key**: Save the current configuration.</p>
+                    <p>6. **Press 'R' Key**: Resize the parking space. You need to drag it to adjust the size.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="runManagement()">Run Management</button>
+                    <button id="run-management-2-modal-btn" class="btn btn-secondary" onclick="runManagement2()">Run Management 2</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
-
 
     <!-- SweetAlert2 JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

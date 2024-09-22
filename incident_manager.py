@@ -6,6 +6,7 @@ from firebase_admin import firestore
 db = firestore.client()
 
 FULL_PARKING_TIMESTAMPS_FILE = 'full_parking_timestamps.json'
+FULL_PARKING_TIMESTAMPS_FILE2 = 'full_parking_timestamps2.json'
 
 def report_incident():
     """
@@ -60,6 +61,41 @@ def save_full_parking_timestamp():
         json.dump(timestamps, file)
 
     return jsonify({'message': 'Timestamp saved successfully'}), 200
+
+def save_full_parking_timestamp2():
+    """
+    Save the timestamp of a full parking event.
+    """
+    timestamp = request.json.get('timestamp')
+
+    if not timestamp:
+        print("No timestamp provided in request")
+        return jsonify({'error': 'No timestamp provided'}), 400
+
+    print(f"Received timestamp: {timestamp}")
+
+    # Read existing data from the JSON file
+    if os.path.exists(FULL_PARKING_TIMESTAMPS_FILE2):
+        try:
+            with open(FULL_PARKING_TIMESTAMPS_FILE2, 'r') as file:
+                timestamps = json.load(file)
+        except json.JSONDecodeError:
+            print("Error reading JSON file, initializing with empty list")
+            timestamps = []
+    else:
+        print("JSON file not found, creating new file")
+        timestamps = []
+
+    # Append the new timestamp
+    timestamps.append(timestamp)
+
+    # Save the updated list back to the JSON file
+    with open(FULL_PARKING_TIMESTAMPS_FILE2, 'w') as file:
+        json.dump(timestamps, file)
+
+    print("Timestamp saved successfully")
+    return jsonify({'message': 'Timestamp saved successfully'}), 
+
 
 
 def fetch_comments():

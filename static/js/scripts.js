@@ -245,7 +245,6 @@ function updateCommentsList(incidents) {
         });
 
         listItem.innerHTML = `
-            <strong>Incident ID:</strong> ${incidentId}<br>
             <strong>Description:</strong> ${description}<br>
             <strong>Timestamp:</strong> ${timestamp}<br><br>
             <strong>Comments:</strong><br>${commentsHtml}

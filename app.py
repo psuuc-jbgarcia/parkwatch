@@ -15,7 +15,9 @@ import pytz
 import datetime
 import threading
 from camera_manager import load_camera_urls, save_camera_urls, get_video_source, generate_frames, add_camera, get_cameras,get_parking_info2
-from incident_manager import report_incident, save_full_parking_timestamp, fetch_comments
+from incident_manager import report_incident, save_full_parking_timestamp, fetch_comments, save_full_parking_timestamp2
+from flask import send_file,abort
+from report import generate_report  # Import the generate_report function
 
 app = Flask(__name__)
 # Path to your trained YOLO model
@@ -41,7 +43,7 @@ plate_detector = LicensePlateDetector(model_path)
 # File path for parking positions
 parking_file = 'CarParkPos'
 timeout_ms = 60000  # Adjust as needed rtsp://admin:jerico12@192.168.100.159:5454/stream1
-vid1 = 'carPark.mp4'
+vid1 = 'car.mp4'
 cap1_web = cv2.VideoCapture(vid1, cv2.CAP_FFMPEG)
 cap2_web = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
 cap1_flutter = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
@@ -386,7 +388,6 @@ def video_feed_flutter(camera_id):
 
 
 
-
 @app.route('/get_parking_info')
 def get_parking_info():
     global posList, free_spaces, reserved_spaces
@@ -424,6 +425,10 @@ def report_incident_route():
 @app.route('/save_full_parking_timestamp', methods=['POST'])
 def save_full_parking_timestamp_route():
     return save_full_parking_timestamp()
+@app.route('/save_full_parking_timestamp2', methods=['POST'])
+def save_full_parking_timestamp_route2():
+    return save_full_parking_timestamp2()  # Call the function to handle the request
+
 
 @app.route('/fetch_comments', methods=['GET'])
 def fetch_comments_route():
@@ -451,9 +456,18 @@ def parking_info_route():
     return get_parking_info2()
 
 
+@app.route('/generate_report', methods=['GET'])
+def generate_report_route():
+    date_str = request.args.get('date')
+    file_path = 'full_parking_timestamps.json'
+    
+    # Generate the report
+    report = generate_report(file_path, date_str)
+    
+    # Return the generated report as a JSON response
+    return jsonify({"report": report})
 
 
-            
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000,use_reloader=False)
     # use_reloader=False
