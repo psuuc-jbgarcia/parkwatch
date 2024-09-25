@@ -7,31 +7,35 @@ def load_parking_data(file_path):
         timestamps = json.load(f)  # Assuming the JSON is a simple list
     return [datetime.fromisoformat(ts) for ts in timestamps]
 
-def process_parking_data(filtered_timestamps):
-    if not filtered_timestamps:
-        return 0, {}, None, 0  # Default values if no timestamps
+def process_parking_data(timestamps):
+    total_full_events = len(timestamps)
+    
+    # Count full events per hour
+    hourly_counts = Counter()
+    for timestamp in timestamps:
+        try:
+            # Parse the timestamp considering the full format including timezone
+            dt = datetime.fromisoformat(timestamp)
+            hour = dt.strftime("%I:00 %p")  # Format to 12-hour format with AM/PM
+            hourly_counts[hour] += 1
+        except Exception as e:
+            print(f"Error parsing timestamp {timestamp}: {e}")  # Log parsing errors
 
-    # Your processing logic goes here
-    # For example:
-    total_full_events = len(filtered_timestamps)  # Example counting
-    hourly_counts = {}  # Example dictionary to hold counts per hour
-    peak_hour = None
-    peak_count = 0
-
-    # Example logic to populate hourly_counts, peak_hour, and peak_count
-    for ts in filtered_timestamps:
-        hour = ts[11:13]  # Extract hour from timestamp
-        hourly_counts[hour] = hourly_counts.get(hour, 0) + 1
-
-        if hourly_counts[hour] > peak_count:
-            peak_count = hourly_counts[hour]
-            peak_hour = hour
+    # Find peak hour
+    if hourly_counts:
+        peak_hour, peak_count = max(hourly_counts.items(), key=lambda x: x[1])
+    else:
+        peak_hour, peak_count = "00:00 AM", 0  # Default if no data
 
     return total_full_events, hourly_counts, peak_hour, peak_count
 
 def generate_report(file_path, date_str):
-    with open(file_path, 'r') as file:
-        timestamps = json.load(file)
+    try:
+        with open(file_path, 'r') as file:
+            timestamps = json.load(file)
+    except Exception as e:
+        print(f"Error loading JSON file: {e}")
+        return "Error loading data"
 
     # Filter timestamps by the specified date
     filtered_timestamps = [
@@ -46,6 +50,9 @@ def generate_report(file_path, date_str):
         print(f"Error processing parking data: {e}")
         return "Error processing report"
 
-    # Generate the report
-    report = f"Total Events: {total_full_events}, Peak Hour: {peak_hour} ({peak_count} events)"
+    print(f"Total Full Events: {total_full_events}, Hourly Counts: {hourly_counts}, Peak Hour: {peak_hour}, Peak Count: {peak_count}")  # Debugging line
+
+    # Directly use peak_hour as it is already in 12-hour format
+    report = (f"Total Parking Full: {total_full_events}, "
+              f"Parking is full at time of: {peak_hour} ({peak_count} times)")
     return report

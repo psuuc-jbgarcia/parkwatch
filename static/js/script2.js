@@ -59,7 +59,7 @@ function fetchParkingData() {
          throw new Error('Network response was not ok');
      })
      .then(data => {
-         console.log('Fetched data:', data);  // Check what data is received
+        //  console.log('Fetched data:', data);  // Check what data is received
          updateParkingData(data);
      })
      .catch(error => {
@@ -75,17 +75,44 @@ function generateReport() {
     const selectedDate = document.getElementById('report-date').value;
 
     fetch(`/generate_report?date=${selectedDate}`)
-        .then(response => response.json())
-        .then(data => {
-            // Display the report using SweetAlert2
-            Swal.fire({
-                title: 'Parking Report',
-                text: data.report,
-                icon: 'info',
-            });
+        .then(response => {
+            console.log('Raw response:', response);
 
-            // Close the modal
+            if (!response.ok) {
+                throw new Error('Failed to fetch the report from the server.');
+            }
+            return response.json(); // This should be returning JSON
+        })
+        .then(data => {
+            if (data.error) {
+                Swal.fire({
+                    title: 'Error',
+                    text: data.error,
+                    icon: 'error',
+                });
+            } else {
+                const { report } = data; // Accessing the report from data
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                // Add content to the PDF
+                doc.text(`Parking Report for ${selectedDate}`, 10, 10);
+                doc.text(report, 10, 20); // Make sure to correctly use the report content
+
+                // Save the PDF
+                doc.save(`Parking_Report_${selectedDate}.pdf`);
+            }
+
+            // Close the modal after generating the report
             $('#generateReportModal').modal('hide');
         })
-        .catch(error => console.error('Error generating report:', error));
+        .catch(error => {
+            console.error('Error generating report:', error);
+
+            Swal.fire({
+                title: 'Error',
+                text: 'Failed to generate report. Please try again.',
+                icon: 'error',
+            });
+        });
 }

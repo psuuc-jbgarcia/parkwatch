@@ -10,14 +10,15 @@ from apscheduler.triggers.cron import CronTrigger
 import subprocess
 from license_plate_detector import LicensePlateDetector
 from firebase.firebase_config import db
-import json
+import json,time
 import pytz
 import datetime
 import threading
 from camera_manager import load_camera_urls, save_camera_urls, get_video_source, generate_frames, add_camera, get_cameras,get_parking_info2
 from incident_manager import report_incident, save_full_parking_timestamp, fetch_comments, save_full_parking_timestamp2
 from flask import send_file,abort
-from report import generate_report  # Import the generate_report function
+from report import generate_report,process_parking_data  # Import the generate_report function
+from fpdf import FPDF
 
 app = Flask(__name__)
 # Path to your trained YOLO model
@@ -309,8 +310,18 @@ def gen_frames(video_source):
 
 
 def gen_frames_for_flutter(video_source):
+    last_time = time.time()
+    frame_rate = 30  # Desired frame rate
     while True:
-        # Read a frame from the video source
+        # Calculate time between frames
+        current_time = time.time()
+        elapsed_time = current_time - last_time
+        if elapsed_time < 1.0 / frame_rate:
+            continue  # Skip frame to maintain frame rate
+
+        last_time = current_time  # Update the last frame time
+        
+        # Read and process frames as usual
         success, frame = video_source.read()
         if not success:
             print("Failed to grab frame, retrying...")
@@ -318,7 +329,7 @@ def gen_frames_for_flutter(video_source):
             video_source = cv2.VideoCapture(vid1, cv2.CAP_FFMPEG)
             continue
 
-        # Preprocess the frame
+        # Preprocess and apply threshold as in your code
         imgGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         imgBlur = cv2.GaussianBlur(imgGray, (3, 3), 1)
 
@@ -327,30 +338,24 @@ def gen_frames_for_flutter(video_source):
         val2 = cv2.getTrackbarPos("Val2", "Vals")
         val3 = cv2.getTrackbarPos("Val3", "Vals")
 
-        # Ensure odd values for threshold parameters
         if val1 % 2 == 0: val1 += 1
         if val3 % 2 == 0: val3 += 1
 
-        # Apply adaptive threshold and blur
         imgThres = cv2.adaptiveThreshold(imgBlur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, val1, val2)
         imgThres = cv2.medianBlur(imgThres, val3)
         kernel = np.ones((3, 3), np.uint8)
         imgThres = cv2.dilate(imgThres, kernel, iterations=1)
 
-        # Check for free spaces and draw rectangles
         checkSpaces(frame, imgThres)
 
-        # Encode image as jpg format
         ret, buffer = cv2.imencode('.jpg', frame)
         if not ret:
             print("Failed to encode frame")
             break
         frame_bytes = buffer.tobytes()
 
-        # Serialize posList only if necessary
         pos_list_serialized = pickle.dumps(posList)
 
-        # Yielding the current state of posList along with frame
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n' + pos_list_serialized + b'\r\n')
 
@@ -456,17 +461,21 @@ def parking_info_route():
     return get_parking_info2()
 
 
-@app.route('/generate_report', methods=['GET'])
-def generate_report_route():
-    date_str = request.args.get('date')
-    file_path = 'full_parking_timestamps.json'
+
+ 
     
     # Generate the report
-    report = generate_report(file_path, date_str)
-    
-    # Return the generated report as a JSON response
-    return jsonify({"report": report})
+@app.route('/generate_report')
+def generate_report_route():
+    file_path = 'full_parking_timestamps.json'
 
+    date_str = request.args.get('date')
+    try:
+        report = generate_report(file_path, date_str)
+        return jsonify({'report': report})  # Return JSON response
+    except Exception as e:
+        print(f"Error generating report: {e}")
+        return jsonify({'error': str(e)}), 500  # Retu
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000,use_reloader=False)
