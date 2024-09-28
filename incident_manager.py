@@ -94,7 +94,8 @@ def save_full_parking_timestamp2():
         json.dump(timestamps, file)
 
     print("Timestamp saved successfully")
-    return jsonify({'message': 'Timestamp saved successfully'}), 
+    return jsonify({'message': 'Timestamp saved successfully'}), 200  # Added status code
+
 
 
 

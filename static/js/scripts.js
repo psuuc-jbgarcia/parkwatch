@@ -31,9 +31,13 @@ updateDateTime();
 function updateParkingInfo(data) {
     const { totalVehicles, parkingAvailable, slotsReserved } = data;
 
+    // Update UI
     document.getElementById('total-vehicles').innerText = totalVehicles;
     document.getElementById('parking-available').innerText = parkingAvailable;
     document.getElementById('slots-reserved').innerText = slotsReserved;
+
+    // Retrieve alertShown from localStorage (convert to boolean)
+    let alertShown = localStorage.getItem('alertShown') === 'true';
 
     if (parseInt(parkingAvailable, 10) === 0 && !alertShown) {
         Swal.fire({
@@ -42,12 +46,15 @@ function updateParkingInfo(data) {
             text: 'Parking slots are full!',
             showConfirmButton: true
         });
-        alertShown = true;
 
-        // Save the timestamp to the backend
+        // Set alertShown to true in localStorage so it persists
+        localStorage.setItem('alertShown', 'true');
+
+        // Save the timestamp to the backend (custom function)
         saveFullParkingTimestamp();
     } else if (parseInt(parkingAvailable, 10) > 0) {
-        alertShown = false;
+        // Reset alertShown when parking becomes available
+        localStorage.removeItem('alertShown');
     }
 }
 
@@ -135,7 +142,22 @@ function runManagement2() {
     })
     .catch(error => console.error('Error:', error));
 }
-
+function runManagement3() {
+    fetch('/run_management3')
+    .then(response => {
+        if (response.ok) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Modification is successful!',
+                showConfirmButton: true
+            });
+            console.log('Management 3 script started.');
+        } else {
+            console.error('Failed to start management script 3.');
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
 function showInstructions() {
     $('#instructions-modal').modal('show');
 }
@@ -205,56 +227,56 @@ function generateReport() {
     });
 }
 
-function fetchComments() {
-    fetch('/fetch_comments')
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            }
-            throw new Error('Network response was not ok');
-        })
-        .then(data => {
-            updateCommentsList(data);
-        })
-        .catch(error => {
-            console.error('Error fetching comments:', error);
-        });
-}
+// function fetchComments() {
+//     fetch('/fetch_comments')
+//         .then(response => {
+//             if (response.ok) {
+//                 return response.json();
+//             }
+//             throw new Error('Network response was not ok');
+//         })
+//         .then(data => {
+//             updateCommentsList(data);
+//         })
+//         .catch(error => {
+//             console.error('Error fetching comments:', error);
+//         });
+// }
 
-function updateCommentsList(incidents) {
-    const incidentsContainer = document.getElementById('incidents-container');
-    incidentsContainer.innerHTML = '';
+// function updateCommentsList(incidents) {
+//     const incidentsContainer = document.getElementById('incidents-container');
+//     incidentsContainer.innerHTML = '';
 
-    incidents.forEach(incident => {
-        const listItem = document.createElement('li');
-        listItem.className = 'list-group-item';
+//     incidents.forEach(incident => {
+//         const listItem = document.createElement('li');
+//         listItem.className = 'list-group-item';
 
-        const incidentId = incident.incident_id || 'N/A';
-        const description = incident.description || 'No description available';
-        const timestamp = incident.timestamp ? new Date(incident.timestamp).toLocaleString() : 'Unknown';
+//         const incidentId = incident.incident_id || 'N/A';
+//         const description = incident.description || 'No description available';
+//         const timestamp = incident.timestamp ? new Date(incident.timestamp).toLocaleString() : 'Unknown';
 
-        let commentsHtml = '';
-        const comments = incident.comments || [];
-        comments.forEach(comment => {
-            const commentDescription = comment.description || 'No description available';
-            const commentTimestamp = comment.timestamp ? new Date(comment.timestamp).toLocaleString() : 'Unknown';
-            commentsHtml += `
-                <strong>Comment Description:</strong> ${commentDescription}<br>
-                <strong>Comment Timestamp:</strong> ${commentTimestamp}<br><br>
-            `;
-        });
+//         let commentsHtml = '';
+//         const comments = incident.comments || [];
+//         comments.forEach(comment => {
+//             const commentDescription = comment.description || 'No description available';
+//             const commentTimestamp = comment.timestamp ? new Date(comment.timestamp).toLocaleString() : 'Unknown';
+//             commentsHtml += `
+//                 <strong>Comment Description:</strong> ${commentDescription}<br>
+//                 <strong>Comment Timestamp:</strong> ${commentTimestamp}<br><br>
+//             `;
+//         });
 
-        listItem.innerHTML = `
-            <strong>Description:</strong> ${description}<br>
-            <strong>Timestamp:</strong> ${timestamp}<br><br>
-            <strong>Comments:</strong><br>${commentsHtml}
-        `;
+//         listItem.innerHTML = `
+//             <strong>Description:</strong> ${description}<br>
+//             <strong>Timestamp:</strong> ${timestamp}<br><br>
+//             <strong>Comments:</strong><br>${commentsHtml}
+//         `;
 
-        incidentsContainer.appendChild(listItem);
-    });
-}
+//         incidentsContainer.appendChild(listItem);
+//     });
+// }
 
-document.addEventListener('DOMContentLoaded', fetchComments);
+// document.addEventListener('DOMContentLoaded', fetchComments);
 
 let cameraIdCounter = 2;
 
@@ -365,3 +387,61 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 });
+
+
+/////////////////////////////////////////////////////
+// document.addEventListener('DOMContentLoaded', function() {
+//     $('#parking-tab-v3').on('shown.bs.tab', function() {
+//         fetchCamerasForId3();
+//         fetchParkingDataForId3();
+//     });
+
+//     // Fetch video feed and parking data for Camera ID 3
+//     function fetchCamerasForId3() {
+//         fetch('/video_feed_parking_space_3')
+//             .then(response => {
+//                 if (!response.ok) {
+//                     throw new Error(`Server responded with status ${response.status}`);
+//                 }
+//                 return response.json();
+//             })
+//             .then(data => {
+//                 const runManagement3ModalBtn = document.getElementById('run-management-3-modal-btn');
+//                 const cameraFeed3 = document.getElementById('camera-feed-3');
+//                 const parkingTab3 = document.getElementById('parking-tab-v3'); // Tab to hide
+
+//                 // Assume no cameras are available initially
+//                 let camerasAvailable = false;
+
+//                 if (data.error) {
+//                     console.error('No cameras available:', data.error);
+//                 } else {
+//                     // Check for camera ID 3 in the fetched data
+//                     data.forEach(camera => {
+//                         if (camera.id === 3) {
+//                             cameraFeed3.src = '/video_feed/3'; // Set the src to the video feed URL for camera 3
+//                             camerasAvailable = true;
+//                         }
+//                     });
+//                 }
+
+//                 // Hide/show elements based on camera availability
+//                 if (camerasAvailable) {
+//                     runManagement3ModalBtn.style.display = 'block'; // Show the button
+//                     parkingTab3.style.display = 'block'; // Ensure the tab is visible
+//                 } else {
+//                     // Hide elements if no cameras are available or if there was an error
+//                     cameraFeed3.src = ""; // Clear the src if no relevant camera is found
+//                     runManagement3ModalBtn.style.display = 'none'; // Hide the button
+//                     parkingTab3.style.display = 'none'; // Hide the tab
+//                 }
+//             })
+//             .catch(error => {
+//                 console.error('Error fetching cameras for ID 3:', error);
+//                 // Clear the video feed and hide button/tab on error
+//                 document.getElementById('camera-feed-3').src = ""; // Clear the src on error
+//                 document.getElementById('run-management-3-modal-btn').style.display = 'none'; // Hide the button
+//                 document.getElementById('parking-tab-v3').style.display = 'none'; // Hide the tab on error
+//             });
+//     }
+// });

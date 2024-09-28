@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import pickle
 import os
-from flask import Flask, render_template, Response, request, jsonify
+from flask import Flask, render_template, Response, request, jsonify,send_from_directory
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -19,16 +19,18 @@ from incident_manager import report_incident, save_full_parking_timestamp, fetch
 from flask import send_file,abort
 from report import generate_report,process_parking_data  # Import the generate_report function
 from fpdf import FPDF
-
+import firebase_admin
+from firebase_admin import credentials, firestore
 app = Flask(__name__)
 # Path to your trained YOLO model
 model_path = 'license_plate_detector.pt'
 daily_total_parked_vehicles = 0
 daily_reserved_vehicles = 0
 FULL_PARKING_TIMESTAMPS_FILE = 'full_parking_timestamps.json'
-DAILY_REPORT_FILE = 'daily_report.json'
+DAILY_REPORT_FILE = 'daily_report1.json'
 CAMERA_FILE_PATH = 'camera_urls.json'
 cameraIdCounter = 2  # Start camera ID from 2
+camera_urls_path = os.path.join(app.root_path, 'camera_urls.json')
 
 scheduler = BackgroundScheduler(timezone='Asia/Manila')
 
@@ -44,7 +46,7 @@ plate_detector = LicensePlateDetector(model_path)
 # File path for parking positions
 parking_file = 'CarParkPos'
 timeout_ms = 60000  # Adjust as needed rtsp://admin:jerico12@192.168.100.159:5454/stream1
-vid1 = 'car.mp4'
+vid1 = 'carPark.mp4'
 cap1_web = cv2.VideoCapture(vid1, cv2.CAP_FFMPEG)
 cap2_web = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
 cap1_flutter = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
@@ -98,18 +100,20 @@ def save_daily_report():
         print(f"Error saving daily report: {e}")
 
 
-# def schedule_daily_report():
-#     global scheduler
-#     if not scheduler.get_job('daily_report_job'):
-#         trigger = CronTrigger(minute='*/1')  # For testing purposes, every minute
-#         scheduler.add_job(save_daily_report, trigger, id='daily_report_job')
-#         print("Scheduled daily report job.")
-#     else:
-#         print("Daily report job already scheduled.")
+def schedule_daily_report():
+    global scheduler
+    if not scheduler.get_job('daily_report_job'):
+        # trigger = CronTrigger(hour='23', minute='59')
+
+        trigger = CronTrigger(minute='*/1')  # For testing purposes, every minute
+        scheduler.add_job(save_daily_report, trigger, id='daily_report_job')
+        print("Scheduled daily report job.")
+    else:
+        print("Daily report job already scheduled.")
 
 
-# # Schedule the daily report job
-# schedule_daily_report()
+# Schedule the daily report job
+schedule_daily_report()
 
 # Start the scheduler
 scheduler.start()
@@ -435,9 +439,9 @@ def save_full_parking_timestamp_route2():
     return save_full_parking_timestamp2()  # Call the function to handle the request
 
 
-@app.route('/fetch_comments', methods=['GET'])
-def fetch_comments_route():
-    return fetch_comments()
+# @app.route('/fetch_comments', methods=['GET'])
+# def fetch_comments_route():
+#     return fetch_comments()
 
 @app.route('/add_camera', methods=['POST'])
 def add_camera_route():
@@ -462,8 +466,46 @@ def parking_info_route():
 
 
 
- 
-    
+@app.route('/camera_urls.json')
+def get_camera_urls():
+    return send_from_directory(os.getcwd(), 'camera_urls.json')
+@app.route('/edit_camera/<int:camera_id>', methods=['POST'])
+def edit_camera(camera_id):
+    data = request.get_json()
+    new_url = data.get('url')
+
+    # Load your camera URLs from the JSON file
+    with open('camera_urls.json', 'r') as f:
+        cameras = json.load(f)
+
+    # Update the camera URL
+    for camera in cameras:
+        if camera['id'] == camera_id:
+            camera['url'] = new_url
+            break
+
+    # Save back to the JSON file
+    with open('camera_urls.json', 'w') as f:
+        json.dump(cameras, f)
+
+    return jsonify({"message": "Camera updated successfully"}), 200
+
+
+@app.route('/delete_camera/<int:camera_id>', methods=['DELETE'])
+def delete_camera(camera_id):
+    # Load your camera URLs from the JSON file
+    with open('camera_urls.json', 'r') as f:
+        cameras = json.load(f)
+
+    # Remove the camera from the list
+    cameras = [camera for camera in cameras if camera['id'] != camera_id]
+
+    # Save back to the JSON file
+    with open('camera_urls.json', 'w') as f:
+        json.dump(cameras, f)
+
+    return jsonify({"message": "Camera deleted successfully"}), 200
+
     # Generate the report
 @app.route('/generate_report')
 def generate_report_route():
@@ -476,7 +518,25 @@ def generate_report_route():
     except Exception as e:
         print(f"Error generating report: {e}")
         return jsonify({'error': str(e)}), 500  # Retu
+    ####################################################
+@app.route('/fetch_user_reports')
+def fetch_user_reports():
+    db = firestore.client()
+    reports_ref = db.collection('userreports')  # Assuming reports are in the 'admin' collection
+    reports = reports_ref.stream()
+
+    report_list = []
+    for report in reports:
+        report_data = report.to_dict()
+        report_list.append({
+            'description': report_data.get('description', 'No description'),
+            'name': report_data.get('name', 'Unknown'),
+            'timestamp': report_data.get('timestamp', 'Unknown')
+        })
+
+    return jsonify(report_list)
+
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000,use_reloader=False)
+    app.run(debug=True, host='0.0.0.0', port=5000)
     # use_reloader=False

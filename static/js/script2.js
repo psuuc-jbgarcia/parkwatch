@@ -116,3 +116,71 @@ function generateReport() {
             });
         });
 }
+////////////////////////////////////////////////////////////////////////////
+//    // Fetch parking data for Camera ID 3
+//    function fetchParkingDataForId3() {
+//     fetch('/get_parking_info3')
+//         .then(response => {
+            
+//             if (response.ok) {
+//                 return response.json();
+//             }
+//             throw new Error('Network response was not ok');
+//         })
+//         .then(data => {
+//             updateParkingDataForId3(data);
+//         })
+//         .catch(error => {
+//             console.error('Error fetching parking information for ID 3:', error);
+//         });
+// }
+
+// function updateParkingDataForId3(data) {
+//     // Ensure data has the correct properties
+//     const { totalVehicles = 'N/A', parkingAvailable = 'N/A', slotsReserved = 'N/A' } = data;
+
+//     document.getElementById('total-vehicles3').innerText = totalVehicles;
+//     document.getElementById('parking-available3').innerText = parkingAvailable;
+//     document.getElementById('slots-reserved3').innerText = slotsReserved;
+
+//     if (parseInt(parkingAvailable, 10) === 0 && !isAlertShown) {
+//         Swal.fire({
+//             icon: 'warning',
+//             title: 'Alert',
+//             text: 'Parking slots 3 are full!',
+//             showConfirmButton: true
+//         });
+//         isAlertShown = true;
+
+//         saveFullParkingTimestamp3();
+//     } else if (parseInt(parkingAvailable, 10) > 0) {
+//         isAlertShown = false;
+//     }
+// }
+
+// function saveFullParkingTimestamp3() {
+//     const now = new Date();
+//     const offset = 8 * 60; // Adjust the offset for your timezone if needed
+//     const localTime = new Date(now.getTime() + offset * 60 * 1000);
+//     const timestamp = localTime.toISOString().replace('Z', '+08:00');
+    
+//     fetch('/save_full_parking_timestamp3', {
+//         method: 'POST',
+//         headers: {
+//             'Content-Type': 'application/json'
+//         },
+//         body: JSON.stringify({ timestamp })
+//     })
+//     .then(response => {
+//         if (response.ok) {
+//             console.log('Timestamp saved successfully for Camera ID 3.');
+//         } else {
+//             console.error('Failed to save timestamp for Camera ID 3.');
+//         }
+//     })
+//     .catch(error => {
+//         console.error('Error saving timestamp for Camera ID 3:', error);
+//     });
+// }
+// fetchParkingDataForId3();
+// setInterval(fetchParkingDataForId3, 1000);

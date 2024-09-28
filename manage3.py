@@ -1,10 +1,10 @@
 import cv2
 import pickle
 import numpy as np
-
+import json
 # File path for parking positions
-parking_file = 'CarParkPos'
-
+parking_file = 'CarParkPos3'
+camera_file = 'camera_urls.json'
 # Function to load parking positions
 def load_pos_list():
     try:
@@ -16,7 +16,21 @@ def load_pos_list():
 
 # Initialize or load parking positions
 posList = load_pos_list()
-
+# Function to load camera URLs
+def load_camera_urls():
+    try:
+        with open(camera_file, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"Warning: {camera_file} not found.")
+        return []
+# Function to get the camera URL by ID
+def get_camera_url(camera_id):
+    camera_urls = load_camera_urls()
+    for camera in camera_urls:
+        if camera['id'] == camera_id:
+            return camera['url']
+    return 'carPark.mp4'  # Default URL if ID not found
 # Ensure all positions are in the correct format
 for i in range(len(posList)):
     if len(posList[i]) == 2:
@@ -27,7 +41,7 @@ for i in range(len(posList)):
         posList[i] = (*posList[i], [],(107, 107))
     elif len(posList[i]) == 5:
         posList[i] = (*posList[i],(107, 107))
-
+cctv_url = get_camera_url(3)
 # Counter for the number of parking spaces
 space_counter = len(posList)
 
@@ -200,7 +214,6 @@ def save_pos_list():
         pickle.dump(posList, f)
 
 # Open video capture for CCTV stream
-cctv_url = 'carPark.mp4'  # Replace with your CCTV stream URL
 cap = cv2.VideoCapture(cctv_url)
 
 # Get original video dimensions
