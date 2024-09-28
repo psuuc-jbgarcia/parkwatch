@@ -200,7 +200,7 @@ def save_pos_list():
         pickle.dump(posList, f)
 
 # Open video capture for CCTV stream
-cctv_url = 'carPark.mp4'  # Replace with your CCTV stream URL
+cctv_url = 'car.mp4'  # Replace with your CCTV stream URL
 cap = cv2.VideoCapture(cctv_url)
 
 # Get original video dimensions

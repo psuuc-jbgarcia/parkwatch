@@ -3,6 +3,7 @@ import cv2
 import os
 import numpy as np
 import re
+from datetime import datetime  # Import datetime for timestamp
 from ultralytics import YOLO
 
 class LicensePlateDetector:
@@ -51,10 +52,13 @@ class LicensePlateDetector:
         # Normalize and validate plate text
         normalized_plate = re.sub(r'\s+', ' ', plate_text).strip().upper()
 
+        # Get the current time as the time of arrival
+        time_of_arrival = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         # Check if the plate text is already in the text file
         if os.path.exists(self.txt_file_path):
             with open(self.txt_file_path, 'r') as f:
-                existing_plates = {line.strip() for line in f.readlines()}
+                existing_plates = {line.split(",")[0].strip() for line in f.readlines()}
         else:
             existing_plates = set()
 
@@ -64,10 +68,11 @@ class LicensePlateDetector:
             image_file_path = os.path.join(self.output_dir, image_file_name)
             cv2.imwrite(image_file_path, cropped_image)
 
-            # Append the new plate text to the text file
+            # Append the new plate text and time of arrival to the text file
             with open(self.txt_file_path, 'a') as f:
-                f.write(normalized_plate + '\n')
-            print(f"Saved new plate: {normalized_plate}")
+                f.write(f"{normalized_plate}, {time_of_arrival}\n")
+
+            print(f"Saved new plate: {normalized_plate} at {time_of_arrival}")
         else:
             print(f"Duplicate plate {normalized_plate} not saved.")
 

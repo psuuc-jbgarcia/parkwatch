@@ -21,6 +21,8 @@ from report import generate_report,process_parking_data  # Import the generate_r
 from fpdf import FPDF
 import firebase_admin
 from firebase_admin import credentials, firestore
+from plate_runner import run_plate_script  # Import the function
+
 app = Flask(__name__)
 # Path to your trained YOLO model
 model_path = 'license_plate_detector.pt'
@@ -57,7 +59,13 @@ cap2_web.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 cap1_flutter.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 cap2_flutter.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 
-
+def run_plate_script():
+    try:
+        # Make sure to provide the correct path to plate.py
+        subprocess.Popen(['python', 'license.py'])
+        print("plate.py script is running...")
+    except Exception as e:
+        print(f"Error running plate.py: {e}")
 
 def save_daily_report():
     global daily_total_parked_vehicles, daily_reserved_vehicles
@@ -100,20 +108,20 @@ def save_daily_report():
         print(f"Error saving daily report: {e}")
 
 
-def schedule_daily_report():
-    global scheduler
-    if not scheduler.get_job('daily_report_job'):
-        # trigger = CronTrigger(hour='23', minute='59')
+# def schedule_daily_report():
+#     global scheduler
+#     if not scheduler.get_job('daily_report_job'):
+#         # trigger = CronTrigger(hour='23', minute='59')
 
-        trigger = CronTrigger(minute='*/1')  # For testing purposes, every minute
-        scheduler.add_job(save_daily_report, trigger, id='daily_report_job')
-        print("Scheduled daily report job.")
-    else:
-        print("Daily report job already scheduled.")
+#         trigger = CronTrigger(minute='*/1')  # For testing purposes, every minute
+#         scheduler.add_job(save_daily_report, trigger, id='daily_report_job')
+#         print("Scheduled daily report job.")
+#     else:
+#         print("Daily report job already scheduled.")
 
 
-# Schedule the daily report job
-schedule_daily_report()
+# # Schedule the daily report job
+# schedule_daily_report()
 
 # Start the scheduler
 scheduler.start()
@@ -538,5 +546,6 @@ def fetch_user_reports():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # run_plate_script()
+    app.run(debug=True, host='0.0.0.0', port=5000,use_reloader=False)
     # use_reloader=False

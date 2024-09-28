@@ -1,9 +1,11 @@
 import easyocr
 import cv2
 import os
-from ultralytics import YOLO
 import re
 import numpy as np
+import json
+from datetime import datetime
+from ultralytics import YOLO
 
 def preprocess_image(img):
     # Convert to grayscale
@@ -55,7 +57,7 @@ reader = easyocr.Reader(['en'])
 
 # Define paths
 video_path = 'a.mp4'
-output_txt_path = 'detected_plates.txt'
+output_json_path = 'detected_plates.json'
 output_images_dir = 'detected_images'
 
 # Create directory for saving images if it doesn't exist
@@ -63,33 +65,32 @@ if not os.path.exists(output_images_dir):
     os.makedirs(output_images_dir)
 
 # Load and process the video
-cap = cv2.VideoCapture(video_path)
+cap = cv2.VideoCapture(0)
 
 # Set to track processed license plates and their variations
 processed_plates = {}
-final_plates = set()
-
-# Get the video frames per second
-fps = cap.get(cv2.CAP_PROP_FPS)
-print(f"Frames per second: {fps}")
+plate_states = {}
+detected_plates_data = []
 
 frame_count = 0
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
         break
-    
+
     # Process every 5th frame to improve performance
     if frame_count % 5 == 0:
         # Apply YOLO detection on the current frame
         results = model(frame, conf=0.5)
+
+        current_detected_plates = set()
 
         # Process each detected license plate
         for result in results:
             for box in result.boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 license_plate_crop = frame[y1:y2, x1:x2]
-                
+
                 if license_plate_crop.size == 0:
                     print(f"Empty crop for coordinates: ({x1}, {y1}, {x2}, {y2})")
                     continue
@@ -98,14 +99,14 @@ while cap.isOpened():
                 preprocessed_crop = preprocess_image(license_plate_crop)
                 enhanced_crop = enhance_image(preprocessed_crop)
                 resized_crop = resize_for_ocr(enhanced_crop)
-                
+
                 # Use EasyOCR to extract text
                 ocr_results = reader.readtext(resized_crop)
-                
+
                 if not ocr_results:
                     print(f"No text detected in crop from coordinates: ({x1}, {y1}, {x2}, {y2})")
                     continue
-                
+
                 # Extract and normalize text from OCR results
                 detected_text = ' '.join(result[1] for result in ocr_results).strip()
                 normalized_text = normalize_text(detected_text)
@@ -119,22 +120,30 @@ while cap.isOpened():
                 print(f"Detected text: {detected_text}")
                 print(f"Normalized text: {normalized_text}")
 
-                # Update the count of detected variations
-                if normalized_text not in processed_plates:
-                    processed_plates[normalized_text] = 0
-                processed_plates[normalized_text] += 1
+                current_detected_plates.add(normalized_text)
 
-                # Check if the normalized text has stabilized
-                if processed_plates[normalized_text] >= 5:
-                    if normalized_text not in final_plates:
-                        final_plates.add(normalized_text)
-                        with open(output_txt_path, 'a') as file:
-                            file.write(normalized_text + '\n')
+                # If the normalized text has stabilized
+                if normalized_text not in plate_states:
+                    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    plate_states[normalized_text] = {
+                        'arrival_time': timestamp,
+                        'departure_time': None
+                    }
+                    detected_plates_data.append({
+                        'plate_number': normalized_text,
+                        'arrival_time': timestamp,
+                        'departure_time': None
+                    })
 
-                        # Save the cropped image with the detected plate
-                        image_path = os.path.join(output_images_dir, f"{normalized_text}.jpg")
-                        cv2.imwrite(image_path, license_plate_crop)
-                        print(f"Saved image: {image_path}")
+                    # Save the cropped image with the detected plate
+                    image_path = os.path.join(output_images_dir, f"{normalized_text}.jpg")
+                    cv2.imwrite(image_path, license_plate_crop)
+                    print(f"Saved image: {image_path}")
+
+                    # Save detected plates data to JSON immediately after detection
+                    with open(output_json_path, 'w') as json_file:
+                        json.dump(detected_plates_data, json_file, indent=4)
+                    print(f"Detected plates saved to {output_json_path}.")
 
                 # Draw a rectangle around the detected license plate
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
@@ -149,16 +158,30 @@ while cap.isOpened():
                 text_y = y1 - 10  # Position text above the detected plate
                 background_top_left = (text_x, text_y - text_size[1] - 10)
                 background_bottom_right = (text_x + text_size[0], text_y + 5)
-                
+
                 # Draw the background rectangle for text
                 cv2.rectangle(frame, background_top_left, background_bottom_right, (0, 0, 0), cv2.FILLED)
 
                 # Draw the text on the frame
                 cv2.putText(frame, normalized_text, (text_x, text_y), font, font_scale, font_color, font_thickness, cv2.LINE_AA)
 
+        # Update departure time for plates not detected in the current frame
+        for plate in list(plate_states.keys()):
+            if plate not in current_detected_plates:
+                # If not detected, set the departure time
+                if plate_states[plate]['departure_time'] is None:
+                    plate_states[plate]['departure_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    # Update detected_plates_data to reflect the departure time
+                    for entry in detected_plates_data:
+                        if entry['plate_number'] == plate:
+                            entry['departure_time'] = plate_states[plate]['departure_time']
+                            break
+                    print(f"Plate {plate} has departed at {plate_states[plate]['departure_time']}")
+                    del plate_states[plate]  # Optionally remove it from tracking
+
         # Show the video frame with overlayed text
         cv2.imshow('Video', frame)
-    
+
     frame_count += 1
 
     # Exit the video display if 'q' is pressed
@@ -167,3 +190,8 @@ while cap.isOpened():
 
 cap.release()
 cv2.destroyAllWindows()
+
+# Final save in case there are plates that were not saved previously
+with open(output_json_path, 'w') as json_file:
+    json.dump(detected_plates_data, json_file, indent=4)
+print(f"Final detected plates saved to {output_json_path}.")
