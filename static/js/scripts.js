@@ -218,14 +218,7 @@ function submitIncidentReport() {
     });
 }
 
-function generateReport() {
-    Swal.fire({
-        icon: 'success',
-        title: 'Success',
-        text: 'Generated report successfully.',
-        showConfirmButton: true
-    });
-}
+
 
 // function fetchComments() {
 //     fetch('/fetch_comments')

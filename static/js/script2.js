@@ -95,9 +95,29 @@ function generateReport() {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
 
-                // Add content to the PDF
-                doc.text(`Parking Report for ${selectedDate}`, 10, 10);
-                doc.text(report, 10, 20); // Make sure to correctly use the report content
+                // Set title style
+                doc.setFontSize(18);
+                doc.setFont("helvetica", "bold");
+                doc.text(`Parking Report for ${selectedDate}`, 15, 20);
+                
+                // Add a line below the title
+                doc.setDrawColor(0, 0, 0); // Black color for the line
+                doc.line(15, 25, 195, 25); // Draw line from (15,25) to (195,25)
+
+                // Set a smaller font size for the report content
+                doc.setFontSize(12);
+                doc.setFont("helvetica", "normal");
+                
+                // Add a bit of spacing
+                doc.text(report, 15, 30); // Starting at y = 30 for content
+
+                // Optional: Add page numbers
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(10);
+                    doc.text(`Page ${i} of ${pageCount}`, 180, 290, { align: "right" });
+                }
 
                 // Save the PDF
                 doc.save(`Parking_Report_${selectedDate}.pdf`);
@@ -116,6 +136,7 @@ function generateReport() {
             });
         });
 }
+
 ////////////////////////////////////////////////////////////////////////////
 //    // Fetch parking data for Camera ID 3
 //    function fetchParkingDataForId3() {

@@ -29,7 +29,7 @@ model_path = 'license_plate_detector.pt'
 daily_total_parked_vehicles = 0
 daily_reserved_vehicles = 0
 FULL_PARKING_TIMESTAMPS_FILE = 'full_parking_timestamps.json'
-DAILY_REPORT_FILE = 'daily_report1.json'
+DAILY_REPORT_FILE = 'daily_report.json'
 CAMERA_FILE_PATH = 'camera_urls.json'
 cameraIdCounter = 2  # Start camera ID from 2
 camera_urls_path = os.path.join(app.root_path, 'camera_urls.json')
@@ -277,35 +277,7 @@ def gen_frames(video_source):
         kernel = np.ones((3, 3), np.uint8)
         imgThres = cv2.dilate(imgThres, kernel, iterations=1)
 
-        # # License plate detection
-        # plates_info = plate_detector.detect_license_plates(frame)
-
-        # # Draw rectangles and text for detected license plates
-        # for x1, y1, x2, y2, plate_text in plates_info:
-        #     # Draw a rectangle around the detected license plate
-        #     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
-        #     # Use the detected plate text
-        #     normalized_text = plate_text
-
-        #     # Overlay text on the frame with a background rectangle
-        #     font = cv2.FONT_HERSHEY_SIMPLEX
-        #     font_scale = 0.7
-        #     font_color = (0, 255, 0)  # Green color
-        #     font_thickness = 2
-        #     text_size, _ = cv2.getTextSize(normalized_text, font, font_scale, font_thickness)
-        #     text_x = x1
-        #     text_y = y1 - 10  # Position text above the detected plate
-        #     background_top_left = (text_x, text_y - text_size[1] - 10)
-        #     background_bottom_right = (text_x + text_size[0], text_y + 5)
-            
-        #     # Draw the background rectangle for text
-        #     cv2.rectangle(frame, background_top_left, background_bottom_right, (0, 0, 0), cv2.FILLED)
-
-        #     # Draw the text on the frame
-        #     cv2.putText(frame, normalized_text, (text_x, text_y), font, font_scale, font_color, font_thickness, cv2.LINE_AA)
-
-        # Check for free spaces and draw rectangles as before
+        
         checkSpaces(frame, imgThres)
 
         # Encode image as jpg format
@@ -375,7 +347,7 @@ def gen_frames_for_flutter(video_source):
 
 @app.route('/')
 def index():
-    return render_template('index.html')  # Ensure this file exists in templates folder
+    return render_template ('index.html')  # Ensure this file exists in templates folder
 
 @app.route('/video_feed/<int:camera_id>')
 def video_feed(camera_id):
