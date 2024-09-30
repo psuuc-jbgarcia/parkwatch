@@ -485,19 +485,32 @@ def delete_camera(camera_id):
         json.dump(cameras, f)
 
     return jsonify({"message": "Camera deleted successfully"}), 200
-
-    # Generate the report
 @app.route('/generate_report')
 def generate_report_route():
     file_path = 'full_parking_timestamps.json'
-
+    
+    # Get the 'date' parameter from the request
     date_str = request.args.get('date')
+    
+    # Check if date_str is provided
+    if not date_str:
+        return jsonify({'error': 'Date parameter is missing'}), 400
+    
     try:
+        # Generate the report using the provided date
         report = generate_report(file_path, date_str)
-        return jsonify({'report': report})  # Return JSON response
+        
+        # Check if the report was generated successfully
+        if report:
+            return jsonify({'report': report})  # Return JSON response with the report
+        else:
+            return jsonify({'error': 'Report generation failed. No data available for the given date.'}), 404
+
     except Exception as e:
+        # Log the error and return a detailed error response
         print(f"Error generating report: {e}")
-        return jsonify({'error': str(e)}), 500  # Retu
+        return jsonify({'error': f"An error occurred: {str(e)}"}), 500
+
     ####################################################
 @app.route('/fetch_user_reports')
 def fetch_user_reports():
@@ -519,5 +532,5 @@ def fetch_user_reports():
 
 if __name__ == '__main__':
     # run_plate_script()
-    app.run(debug=True, host='0.0.0.0', port=5000,use_reloader=False)
+    app.run(debug=True, host='0.0.0.0', port=5000)
     # use_reloader=False

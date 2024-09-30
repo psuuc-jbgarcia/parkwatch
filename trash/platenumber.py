@@ -1,25 +1,31 @@
 import json
+import os
 from datetime import datetime
 
-# Assuming your JSON data is stored in a variable called `detected_plates_data`
-detected_plates_data = [
-    {"plate_number": "R 183 JF", "arrival_time": "2024-09-29 17:57:40", "departure_time": None},
-    {"plate_number": "R 183 JF", "arrival_time": "2024-09-29 17:57:40", "departure_time": "2024-09-29 17:57:40"},
-    {"plate_number": "R 183 JF", "arrival_time": "2024-09-29 17:57:40", "departure_time": "2024-09-29 17:57:41"},
-    {"plate_number": "H 644 LX", "arrival_time": "2024-09-29 17:57:52", "departure_time": None},
-    {"plate_number": "H 644 LX", "arrival_time": "2024-09-29 17:57:52", "departure_time": "2024-09-29 17:57:52"},
-    {"plate_number": "H 644 LX", "arrival_time": "2024-09-29 17:57:52", "departure_time": "2024-09-29 17:57:53"},
-    {"plate_number": "66 HH 07", "arrival_time": "2024-09-29 17:57:59", "departure_time": None},
-    {"plate_number": "66 HH 07", "arrival_time": "2024-09-29 17:57:59", "departure_time": "2024-09-29 17:57:59"},
-    {"plate_number": "66 HH 07", "arrival_time": "2024-09-29 17:57:59", "departure_time": "2024-09-29 17:58:00"},
-    {"plate_number": "66 HH 07", "arrival_time": "2024-09-29 17:57:59", "departure_time": "2024-09-29 17:58:01"},
-]
+def load_detected_plates(filename):
+    # Get the current directory of the script
+    current_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Dictionary to hold the latest departure times
-latest_departure_times = {}
+    # Construct the full path to the JSON file
+    file_path = 'C:/Users/Jerico/Documents/parkwatch/detected_plates.json'
+
+    print(f"Looking for file at: {file_path}")  # Debugging output
+
+    with open(file_path, 'r') as f:
+        detected_plates_data = json.load(f)
+    return detected_plates_data
+
+filename = 'detected_plates.json'
+
+# Load the detected plates data from the JSON file
+detected_plates_data = load_detected_plates(filename)
+
+# Dictionary to hold the latest departure times and corresponding arrival times
+latest_departure_info = {}
 
 for entry in detected_plates_data:
     plate_number = entry['plate_number']
+    arrival_time = entry['arrival_time']
     departure_time = entry['departure_time']
 
     # Only consider valid departure times
@@ -28,13 +34,22 @@ for entry in detected_plates_data:
         departure_time_dt = datetime.strptime(departure_time, '%Y-%m-%d %H:%M:%S')
 
         # Check if the plate number already exists in the dictionary
-        if plate_number not in latest_departure_times:
-            latest_departure_times[plate_number] = departure_time_dt
+        if plate_number not in latest_departure_info:
+            # Store both departure and arrival time
+            latest_departure_info[plate_number] = {
+                'departure_time': departure_time_dt,
+                'arrival_time': arrival_time
+            }
         else:
             # Update if the current departure time is later
-            if departure_time_dt > latest_departure_times[plate_number]:
-                latest_departure_times[plate_number] = departure_time_dt
+            if departure_time_dt > latest_departure_info[plate_number]['departure_time']:
+                latest_departure_info[plate_number] = {
+                    'departure_time': departure_time_dt,
+                    'arrival_time': arrival_time
+                }
 
-# Display the results
-for plate_number, latest_departure in latest_departure_times.items():
-    print(f"Plate Number: {plate_number}, Latest Departure Time: {latest_departure.strftime('%Y-%m-%d %H:%M:%S')}")
+# Display the results with both latest departure time and its corresponding arrival time
+for plate_number, info in latest_departure_info.items():
+    latest_departure = info['departure_time'].strftime('%Y-%m-%d %H:%M:%S')
+    corresponding_arrival = info['arrival_time']
+    print(f"Plate Number: {plate_number}, Arrival Time: {corresponding_arrival}, Departure Time: {latest_departure}")

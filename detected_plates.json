@@ -1,182 +1,62 @@
 [
     {
         "plate_number": "R 183 JF",
-        "arrival_time": "2024-09-29 17:57:40",
+        "arrival_time": "2024-09-30 10:22:10",
         "departure_time": null
     },
     {
         "plate_number": "R 183 JF",
-        "arrival_time": "2024-09-29 17:57:40",
-        "departure_time": "2024-09-29 17:57:40"
+        "arrival_time": "2024-09-30 10:22:10",
+        "departure_time": "2024-09-30 10:22:10"
     },
     {
         "plate_number": "R 183 JF",
-        "arrival_time": "2024-09-29 17:57:40",
-        "departure_time": "2024-09-29 17:57:41"
+        "arrival_time": "2024-09-30 10:22:10",
+        "departure_time": "2024-09-30 10:22:11"
     },
     {
         "plate_number": "H 644 LX",
-        "arrival_time": "2024-09-29 17:57:52",
+        "arrival_time": "2024-09-30 10:22:38",
         "departure_time": null
     },
     {
         "plate_number": "H 644 LX",
-        "arrival_time": "2024-09-29 17:57:52",
-        "departure_time": "2024-09-29 17:57:52"
+        "arrival_time": "2024-09-30 10:22:38",
+        "departure_time": "2024-09-30 10:22:39"
     },
     {
         "plate_number": "H 644 LX",
-        "arrival_time": "2024-09-29 17:57:52",
-        "departure_time": "2024-09-29 17:57:53"
+        "arrival_time": "2024-09-30 10:22:38",
+        "departure_time": "2024-09-30 10:22:40"
     },
     {
         "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
+        "arrival_time": "2024-09-30 10:22:56",
         "departure_time": null
     },
     {
         "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 17:57:59"
+        "arrival_time": "2024-09-30 10:22:56",
+        "departure_time": "2024-09-30 10:22:57"
     },
     {
         "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 17:58:00"
+        "arrival_time": "2024-09-30 10:22:56",
+        "departure_time": "2024-09-30 10:22:58"
     },
     {
         "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 17:58:00"
+        "arrival_time": "2024-09-30 10:22:56",
+        "departure_time": "2024-09-30 10:22:59"
     },
     {
         "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 17:58:01"
+        "arrival_time": "2024-09-30 10:22:56",
+        "departure_time": "2024-09-30 10:23:00"
     },
     {
         "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 17:58:01"
-    },
-    {
-        "plate_number": "R 183 JF",
-        "arrival_time": "2024-09-29 17:57:40",
-        "departure_time": "2024-09-29 17:58:31"
-    },
-    {
-        "plate_number": "R 183 JF",
-        "arrival_time": "2024-09-29 17:57:40",
-        "departure_time": "2024-09-29 17:58:32"
-    },
-    {
-        "plate_number": "R 183 JF",
-        "arrival_time": "2024-09-29 17:57:40",
-        "departure_time": "2024-09-29 17:58:32"
-    },
-    {
-        "plate_number": "H 644 LX",
-        "arrival_time": "2024-09-29 17:57:52",
-        "departure_time": "2024-09-29 17:58:43"
-    },
-    {
-        "plate_number": "H 644 LX",
-        "arrival_time": "2024-09-29 17:57:52",
-        "departure_time": "2024-09-29 17:58:44"
-    },
-    {
-        "plate_number": "H 644 LX",
-        "arrival_time": "2024-09-29 17:57:52",
-        "departure_time": "2024-09-29 17:58:44"
-    },
-    {
-        "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 17:58:50"
-    },
-    {
-        "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 17:58:51"
-    },
-    {
-        "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 17:58:51"
-    },
-    {
-        "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 17:58:51"
-    },
-    {
-        "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 17:58:52"
-    },
-    {
-        "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 17:58:52"
-    },
-    {
-        "plate_number": "R 183 JF",
-        "arrival_time": "2024-09-29 17:57:40",
-        "departure_time": "2024-09-29 18:06:58"
-    },
-    {
-        "plate_number": "R 183 JF",
-        "arrival_time": "2024-09-29 17:57:40",
-        "departure_time": "2024-09-29 18:06:58"
-    },
-    {
-        "plate_number": "R 183 JF",
-        "arrival_time": "2024-09-29 17:57:40",
-        "departure_time": "2024-09-29 18:06:58"
-    },
-    {
-        "plate_number": "H 644 LX",
-        "arrival_time": "2024-09-29 17:57:52",
-        "departure_time": "2024-09-29 18:07:10"
-    },
-    {
-        "plate_number": "H 644 LX",
-        "arrival_time": "2024-09-29 17:57:52",
-        "departure_time": "2024-09-29 18:07:10"
-    },
-    {
-        "plate_number": "H 644 LX",
-        "arrival_time": "2024-09-29 17:57:52",
-        "departure_time": "2024-09-29 18:07:10"
-    },
-    {
-        "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 18:07:17"
-    },
-    {
-        "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 18:07:17"
-    },
-    {
-        "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 18:07:18"
-    },
-    {
-        "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 18:07:18"
-    },
-    {
-        "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 18:07:18"
-    },
-    {
-        "plate_number": "66 HH 07",
-        "arrival_time": "2024-09-29 17:57:59",
-        "departure_time": "2024-09-29 18:07:19"
+        "arrival_time": "2024-09-30 10:22:56",
+        "departure_time": "2024-09-30 10:23:01"
     }
 ]

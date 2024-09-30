@@ -227,8 +227,13 @@ def add_camera():
         # Load existing camera URLs
         camera_urls = load_camera_urls()
 
+        # Check if the maximum ID is 2
+        current_ids = [camera['id'] for camera in camera_urls]
+        if max(current_ids, default=0) >= 2:
+            return jsonify({'error': 'Cannot add more cameras, maximum of 2 supported for now.'}), 400
+        
         # Determine the next ID
-        next_id = max((camera['id'] for camera in camera_urls), default=1) + 1
+        next_id = max(current_ids, default=0) + 1
 
         # Add the new camera with the next ID
         camera_urls.append({
