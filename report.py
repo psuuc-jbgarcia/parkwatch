@@ -29,9 +29,7 @@ def process_parking_data(timestamps):
     return total_full_events, hourly_counts, peak_hour, peak_count
 
 # New function to load detected plates data with error handling
-def load_detected_plates():
-    file_path = os.path.join('C:/Users/Jerico/Documents/parkwatch/detected_plates.json')
-
+def load_detected_plates(file_path):
     try:
         with open(file_path, 'r') as f:
             content = f.read().strip()  # Read and strip whitespace
@@ -45,6 +43,15 @@ def load_detected_plates():
     except Exception as e:
         print(f"Error loading detected plates data: {e}")
         return []  # Handle any other exceptions
+
+# New function to load daily report data
+def load_daily_report(file_path):
+    try:
+        with open(file_path, 'r') as f:
+            return json.load(f)  # Load JSON data
+    except Exception as e:
+        print(f"Error loading daily report data: {e}")
+        return []  # Handle any exceptions
 
 # New function to process the detected plates data (arrival and departure times)
 def process_detected_plates_data(detected_plates_data):
@@ -73,10 +80,13 @@ def process_detected_plates_data(detected_plates_data):
     return latest_departure_info
 
 # Main report generation function (modified to include the new data)
-def generate_report(file_path, date_str):
+def generate_report(parking_file_path, detected_plates_file_path, daily_report_file_path, date_str):
+    # Initialize the report variable
+    report = f"Parking Report for {date_str}\n\n"
+
     # Load and filter parking timestamps
     try:
-        with open(file_path, 'r') as file:
+        with open(parking_file_path, 'r') as file:
             timestamps = json.load(file)
     except Exception as e:
         return f"Error loading parking data: {e}"
@@ -90,7 +100,7 @@ def generate_report(file_path, date_str):
 
     # Load detected plates data
     try:
-        detected_plates_data = load_detected_plates()  # Corrected: no argument here
+        detected_plates_data = load_detected_plates(detected_plates_file_path)  # Corrected: no argument here
     except Exception as e:
         return f"Error loading detected plates data: {e}"
 
@@ -100,8 +110,23 @@ def generate_report(file_path, date_str):
     except Exception as e:
         return f"Error processing detected plates data: {e}"
 
+    # Load daily report data
+    try:
+        daily_report_data = load_daily_report(daily_report_file_path)
+    except Exception as e:
+        return f"Error loading daily report data: {e}"
+
+    # Get daily totals for the specified date
+    daily_totals = next((item for item in daily_report_data if item['date'] == date_str), None)
+
     # Generate the report
-    report = f"Parking Report for {date_str}\nTotal Parking Full: {total_full_events}, Peak Hour: {peak_hour} ({peak_count} times)\n\n"
+    if daily_totals:
+        report += f"Total Parked Vehicles: {daily_totals['total_parked_vehicles']}\n"
+        report += f"Reserved Vehicles: {daily_totals['reserved_vehicles']}\n"
+    else:
+        report += "No data available for the specified date.\n"
+
+    report += f"Total Parking Full: {total_full_events}, Peak Hour: {peak_hour} ({peak_count} times)\n\n"
     
     # Add the plate number report for arrival and departure times
     report += "Arrival and Departure Information:\n"

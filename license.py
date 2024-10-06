@@ -82,7 +82,7 @@ frame_count = 0
 stable_plate = None
 stable_count = 0
 
-cap = cv2.VideoCapture(video_path)
+cap = cv2.VideoCapture(0)
 
 while cap.isOpened():
     ret, frame = cap.read()

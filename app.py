@@ -21,11 +21,10 @@ from report import generate_report,process_parking_data  # Import the generate_r
 from fpdf import FPDF
 import firebase_admin
 from firebase_admin import credentials, firestore
-from plate_runner import run_plate_script  # Import the function
 
 app = Flask(__name__)
 # Path to your trained YOLO model
-model_path = 'license_plate_detector.pt'
+# model_path = 'license_plate_detector.pt'
 daily_total_parked_vehicles = 0
 daily_reserved_vehicles = 0
 FULL_PARKING_TIMESTAMPS_FILE = 'full_parking_timestamps.json'
@@ -37,7 +36,7 @@ camera_urls_path = os.path.join(app.root_path, 'camera_urls.json')
 scheduler = BackgroundScheduler(timezone='Asia/Manila')
 
 # Initialize License Plate Detector
-plate_detector = LicensePlateDetector(model_path)
+# plate_detector = LicensePlateDetector(model_path)
 # Adjust Code for Network Latency
 # If the camera is on a different network with high latency, increase the timeout value for cv2.VideoCapture.
 # Example:
@@ -48,7 +47,7 @@ plate_detector = LicensePlateDetector(model_path)
 # File path for parking positions
 parking_file = 'CarParkPos'
 timeout_ms = 60000  # Adjust as needed rtsp://admin:jerico12@192.168.100.159:5454/stream1
-vid1 = 'carPark.mp4'
+vid1 = 'car.mp4'
 cap1_web = cv2.VideoCapture(vid1, cv2.CAP_FFMPEG)
 cap2_web = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
 cap1_flutter = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
@@ -108,20 +107,20 @@ def save_daily_report():
         print(f"Error saving daily report: {e}")
 
 
-# def schedule_daily_report():
-#     global scheduler
-#     if not scheduler.get_job('daily_report_job'):
-#         # trigger = CronTrigger(hour='23', minute='59')
+def schedule_daily_report():
+    global scheduler
+    if not scheduler.get_job('daily_report_job'):
+        trigger = CronTrigger(hour='23', minute='59')
 
-#         trigger = CronTrigger(minute='*/1')  # For testing purposes, every minute
-#         scheduler.add_job(save_daily_report, trigger, id='daily_report_job')
-#         print("Scheduled daily report job.")
-#     else:
-#         print("Daily report job already scheduled.")
+        # trigger = CronTrigger(minute='*/1')  # For testing purposes, every minute
+        scheduler.add_job(save_daily_report, trigger, id='daily_report_job')
+        print("Scheduled daily report job.")
+    else:
+        print("Daily report job already scheduled.")
 
 
-# # Schedule the daily report job
-# schedule_daily_report()
+# Schedule the daily report job
+schedule_daily_report()
 
 # Start the scheduler
 scheduler.start()
@@ -207,7 +206,7 @@ def checkSpaces(img, imgThres):
                 daily_reserved_vehicles += 1
                 posList[i] = (*pos[:6], True, was_occupied)  # Update state in posList
             reserved_spaces += 1  # Count for displaying purposes
-        elif count < 900:
+        elif count < 1000:
             color = (0, 200, 0)  # Green for free space
             thickness = 5
             if not was_occupied:  # Increment only when transitioning from not occupied to occupied
@@ -487,18 +486,21 @@ def delete_camera(camera_id):
     return jsonify({"message": "Camera deleted successfully"}), 200
 @app.route('/generate_report')
 def generate_report_route():
-    file_path = 'full_parking_timestamps.json'
+    parking_file_path = 'full_parking_timestamps.json'
+    detected_plates_file_path = 'detected_plates.json'
+    daily_report_file_path = 'daily_report.json'
     
     # Get the 'date' parameter from the request
     date_str = request.args.get('date')
     
-    # Check if date_str is provided
     if not date_str:
         return jsonify({'error': 'Date parameter is missing'}), 400
     
+    report = None  # Initialize report variable
+    
     try:
-        # Generate the report using the provided date
-        report = generate_report(file_path, date_str)
+        # Generate the report using the provided date and all necessary file paths
+        report = generate_report(parking_file_path, detected_plates_file_path, daily_report_file_path, date_str)
         
         # Check if the report was generated successfully
         if report:
@@ -510,7 +512,6 @@ def generate_report_route():
         # Log the error and return a detailed error response
         print(f"Error generating report: {e}")
         return jsonify({'error': f"An error occurred: {str(e)}"}), 500
-
     ####################################################
 @app.route('/fetch_user_reports')
 def fetch_user_reports():
