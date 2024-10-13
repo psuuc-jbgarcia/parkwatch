@@ -46,9 +46,9 @@ model = YOLO('license_plate_detector.pt')
 reader = easyocr.Reader(['en'])
 
 # Define paths
-video_path = 'a.mp4'
+video_path = 'test1.mp4'
 output_json_path = 'detected_plates.json'
-output_images_dir = 'detected_images'
+output_images_dir = 'detected_plates'
 
 if not os.path.exists(output_images_dir):
     os.makedirs(output_images_dir)
@@ -74,8 +74,7 @@ if os.path.exists(output_json_path):
 # Create a dictionary for easy access to plate data
 plate_states = {entry['plate_number']: entry for entry in detected_plates_data}
 
-PLATE_ENTRY_THRESHOLD = 10  # seconds
-STABILITY_THRESHOLD = 5  # number of frames for stability
+STABILITY_THRESHOLD = 3  # number of frames for stability
 MIN_PLATE_LENGTH = 5  # Minimum length for a valid plate
 
 frame_count = 0

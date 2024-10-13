@@ -59,11 +59,11 @@ cv2.resizeWindow("Vals", 640, 240)
 cv2.createTrackbar("Val1", "Vals", 25, 50, empty)
 cv2.createTrackbar("Val2", "Vals", 16, 50, empty)
 cv2.createTrackbar("Val3", "Vals", 5, 50, empty)
-
-def draw_text_with_background(img, text, position, font=cv2.FONT_HERSHEY_SIMPLEX, font_scale=1, font_thickness=2, text_color=(255, 255, 255), background_color=(0, 0, 0)):
+def draw_text_with_background(img, text, position, font=cv2.FONT_HERSHEY_SIMPLEX, font_scale=0.5, font_thickness=1, text_color=(255, 255, 255), background_color=(0, 0, 0)):
     """
     Draws text on an image with a background rectangle for better visibility.
     """
+    # Get the size of the text
     text_size, _ = cv2.getTextSize(text, font, font_scale, font_thickness)
     text_w, text_h = text_size
 
@@ -74,8 +74,9 @@ def draw_text_with_background(img, text, position, font=cv2.FONT_HERSHEY_SIMPLEX
     # Draw the rectangle background
     cv2.rectangle(img, (rect_x, rect_y - rect_h), (rect_x + rect_w, rect_y), background_color, -1)
 
-    # Draw the text
+    # Draw the text with the new smaller scale and thickness
     cv2.putText(img, text, position, font, font_scale, text_color, font_thickness)
+
 
 def checkSpaces(img, imgThres):
     global space_counter

@@ -5,7 +5,7 @@ import matplotlib.patches as patches
 from matplotlib.animation import FuncAnimation
 
 # Define the path to your parking file
-parking_file = 'CarParkPos'  # Adjust this path if necessary
+parking_file = 'CarParkPos2'  # Adjust this path if necessary
 
 def load_pos_list():
     if not os.path.exists(parking_file):
@@ -23,7 +23,7 @@ def draw_parking_slots(ax, pos_list):
     ax.clear()  # Clear the current axes
 
     if not pos_list:  # Check if the list is empty
-        print("No positions to draw.")  # Debugging
+        print("No positions to draw.")
         return
 
     # Dynamically set limits based on parking slot positions
@@ -39,11 +39,10 @@ def draw_parking_slots(ax, pos_list):
     ax.invert_yaxis()  # Invert y-axis to display bottom at the top
 
     # Set a textured background to simulate a parking lot surface
-    ax.set_facecolor('#f0f0f0')  # Light gray background
-    fig.patch.set_facecolor('white')  # Set figure background to white
+    ax.set_facecolor('#D3D3D3')  # Light gray background simulating asphalt
 
     # Draw parking slots
-    for pos in pos_list:
+    for idx, pos in enumerate(pos_list):
         px, py, reserved, shape, points, size = pos
 
         # Set colors based on reservation status
@@ -65,18 +64,22 @@ def draw_parking_slots(ax, pos_list):
                                        facecolor=color)
         ax.add_patch(rect)
 
-        # Improved text styling
-        text_color = 'black' if reserved else 'black'
+        # Improved text styling with slot numbers
         ax.text(px + size[0] / 2, py + size[1] / 2, 
-                'Reserved' if reserved else 'Available', 
-                ha='center', va='center', fontsize=12, color=text_color,
-                fontweight='bold', fontname='Arial')  # Improved font styling
+                f'Slot {idx + 1}\n{"Reserved" if reserved else "Available"}', 
+                ha='center', va='center', fontsize=10, color='black',
+                fontweight='bold', fontname='Arial', bbox=dict(facecolor='white', alpha=0.8, edgecolor='none', boxstyle='round,pad=0.5'))
 
     # Add separators between slots
     for pos in pos_list:
         px, py, reserved, shape, points, size = pos
         separator = patches.Rectangle((px + size[0], py), 2, size[1], linewidth=0, edgecolor='none', facecolor='black')
         ax.add_patch(separator)
+
+    # Draw lines for parking spots
+    for pos in pos_list:
+        px, py, reserved, shape, points, size = pos
+        ax.plot([px + size[0], px + size[0]], [py, py + size[1]], color='black', linewidth=2)
 
     # Remove ticks for a cleaner look
     ax.xaxis.set_ticks([])

@@ -47,16 +47,22 @@ scheduler = BackgroundScheduler(timezone='Asia/Manila')
 # File path for parking positions
 parking_file = 'CarParkPos'
 timeout_ms = 60000  # Adjust as needed rtsp://admin:jerico12@192.168.100.159:5454/stream1
-vid1 = 'car.mp4'
-cap1_web = cv2.VideoCapture(vid1, cv2.CAP_FFMPEG)
-cap2_web = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
-cap1_flutter = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
-cap2_flutter = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
+cctv = 'rtsp://admin:jerico12@192.168.100.159:5454/stream1'
+vid1='car.mp4'
+#for model
+cap1_web = cv2.VideoCapture(0)
+cap2_web = cv2.VideoCapture(0)
+cap1_flutter = cv2.VideoCapture(0)
+cap2_flutter = cv2.VideoCapture(0)
 
-cap1_web.set(cv2.CAP_PROP_BUFFERSIZE, 3)
-cap2_web.set(cv2.CAP_PROP_BUFFERSIZE, 3)
-cap1_flutter.set(cv2.CAP_PROP_BUFFERSIZE, 3)
-cap2_flutter.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+# cap1_web = cv2.VideoCapture(vid1, cv2.CAP_FFMPEG)
+# cap2_web = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
+# cap1_flutter = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
+# cap2_flutter = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
+# cap1_web.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+# cap2_web.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+# cap1_flutter.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+# cap2_flutter.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 
 def run_plate_script():
     try:
@@ -206,7 +212,7 @@ def checkSpaces(img, imgThres):
                 daily_reserved_vehicles += 1
                 posList[i] = (*pos[:6], True, was_occupied)  # Update state in posList
             reserved_spaces += 1  # Count for displaying purposes
-        elif count < 1000:
+        elif count < 900:
             color = (0, 200, 0)  # Green for free space
             thickness = 5
             if not was_occupied:  # Increment only when transitioning from not occupied to occupied
@@ -533,5 +539,5 @@ def fetch_user_reports():
 
 if __name__ == '__main__':
     # run_plate_script()
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000,use_reloader=False)
     # use_reloader=False

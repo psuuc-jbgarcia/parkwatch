@@ -21,9 +21,7 @@ from report import generate_report,process_parking_data  # Import the generate_r
 from fpdf import FPDF
 import firebase_admin
 from firebase_admin import credentials, firestore
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from matplotlib.animation import FuncAnimation
+
 app = Flask(__name__)
 # Path to your trained YOLO model
 # model_path = 'license_plate_detector.pt'
@@ -109,20 +107,20 @@ def save_daily_report():
         print(f"Error saving daily report: {e}")
 
 
-# def schedule_daily_report():
-#     global scheduler
-#     if not scheduler.get_job('daily_report_job'):
-#         # trigger = CronTrigger(hour='23', minute='59')
+def schedule_daily_report():
+    global scheduler
+    if not scheduler.get_job('daily_report_job'):
+        trigger = CronTrigger(hour='23', minute='59')
 
-#         trigger = CronTrigger(minute='*/1')  # For testing purposes, every minute
-#         scheduler.add_job(save_daily_report, trigger, id='daily_report_job')
-#         print("Scheduled daily report job.")
-#     else:
-#         print("Daily report job already scheduled.")
+        # trigger = CronTrigger(minute='*/1')  # For testing purposes, every minute
+        scheduler.add_job(save_daily_report, trigger, id='daily_report_job')
+        print("Scheduled daily report job.")
+    else:
+        print("Daily report job already scheduled.")
 
 
-# # Schedule the daily report job
-# schedule_daily_report()
+# Schedule the daily report job
+schedule_daily_report()
 
 # Start the scheduler
 scheduler.start()
@@ -345,86 +343,6 @@ def gen_frames_for_flutter(video_source):
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n' + pos_list_serialized + b'\r\n')
 
 
-def load_pos_list_forParkingLayout():
-    parking_file = 'CarParkPos'  # Update path if necessary
-    if not os.path.exists(parking_file):
-        print(f"Error: File not found: {parking_file}")
-        return []
-    try:
-        with open(parking_file, 'rb') as f:
-            pos_list = pickle.load(f)
-            return pos_list
-    except (pickle.PickleError, EOFError, IOError) as e:
-        print(f"Error loading pickle file: {e}")
-        return []
-def draw_parking_slots(ax, pos_list):
-    ax.clear()  # Clear the current axes
-
-    if not pos_list:  # Check if the list is empty
-        print("No positions to draw.")
-        return
-
-    # Dynamically set limits based on parking slot positions
-    x_min = min(px for px, _, _, _, _, _ in pos_list) - 20
-    x_max = max(px + size[0] for px, _, _, _, _, size in pos_list) + 20
-    y_min = min(py for _, py, _, _, _, _ in pos_list) - 20
-    y_max = max(py + size[1] for _, py, _, _, _, size in pos_list) + 20
-
-    ax.set_xlim(x_min, x_max)
-    ax.set_ylim(y_min, y_max)
-    ax.invert_yaxis()  # Invert y-axis to display bottom at the top
-
-    ax.set_facecolor('#f0f0f0')  # Light gray background
-    fig.patch.set_facecolor('white')
-
-    # Draw parking slots
-    for pos in pos_list:
-        px, py, reserved, shape, points, size = pos
-
-        color = 'lightgreen' if not reserved else 'lightcoral'
-        edgecolor = 'blue'
-
-        shadow_offset = 3
-        shadow = patches.Rectangle((px + shadow_offset, py - shadow_offset),
-                                   size[0], size[1], linewidth=0,
-                                   edgecolor='none', facecolor='gray', alpha=0.3)
-        ax.add_patch(shadow)
-
-        rect = patches.FancyBboxPatch((px, py), size[0], size[1],
-                                      boxstyle="round,pad=0.1", linewidth=2,
-                                      edgecolor=edgecolor, facecolor=color)
-        ax.add_patch(rect)
-
-        text_color = 'black'
-        ax.text(px + size[0] / 2, py + size[1] / 2,
-                'Reserved' if reserved else 'Available',
-                ha='center', va='center', fontsize=12, color=text_color,
-                fontweight='bold', fontname='Arial')
-
-    # Add separators between slots
-    for pos in pos_list:
-        px, py, reserved, shape, points, size = pos
-        separator = patches.Rectangle((px + size[0], py), 2, size[1], linewidth=0,
-                                      edgecolor='none', facecolor='black')
-        ax.add_patch(separator)
-
-    # Remove ticks for a cleaner look
-    ax.xaxis.set_ticks([])
-    ax.yaxis.set_ticks([])
-def update(frame):
-    pos_list = load_pos_list()  # Reload the parking positions
-    draw_parking_slots(ax, pos_list)  # Redraw the parking slots
-# Initialize plot with a larger figure size
-fig, ax = plt.subplots(figsize=(12, 8))  # Adjust the figure size as needed
-ani = FuncAnimation(fig, update, interval=3000, cache_frame_data=False)  # Disable caching
-
-# Hide the toolbar
-plt.get_current_fig_manager().toolbar.pack_forget()
-
-# Use tight layout to minimize margins
-plt.tight_layout()
-
-plt.show()
 
 @app.route('/')
 def index():
@@ -568,18 +486,21 @@ def delete_camera(camera_id):
     return jsonify({"message": "Camera deleted successfully"}), 200
 @app.route('/generate_report')
 def generate_report_route():
-    file_path = 'full_parking_timestamps.json'
+    parking_file_path = 'full_parking_timestamps.json'
+    detected_plates_file_path = 'detected_plates.json'
+    daily_report_file_path = 'daily_report.json'
     
     # Get the 'date' parameter from the request
     date_str = request.args.get('date')
     
-    # Check if date_str is provided
     if not date_str:
         return jsonify({'error': 'Date parameter is missing'}), 400
     
+    report = None  # Initialize report variable
+    
     try:
-        # Generate the report using the provided date
-        report = generate_report(file_path, date_str)
+        # Generate the report using the provided date and all necessary file paths
+        report = generate_report(parking_file_path, detected_plates_file_path, daily_report_file_path, date_str)
         
         # Check if the report was generated successfully
         if report:
@@ -591,7 +512,6 @@ def generate_report_route():
         # Log the error and return a detailed error response
         print(f"Error generating report: {e}")
         return jsonify({'error': f"An error occurred: {str(e)}"}), 500
-
     ####################################################
 @app.route('/fetch_user_reports')
 def fetch_user_reports():
@@ -612,12 +532,6 @@ def fetch_user_reports():
 
 
 if __name__ == '__main__':
-    run_plate_script()
-    app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
-    fig, ax = plt.subplots(figsize=(12, 8))
-    ani = FuncAnimation(fig, update, interval=3000, cache_frame_data=False)
-
-    plt.get_current_fig_manager().toolbar.pack_forget()
-    plt.tight_layout()
-    plt.show()
+    # run_plate_script()
+    app.run(debug=True, host='0.0.0.0', port=5000)
     # use_reloader=False
