@@ -8,7 +8,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 daily_total_parked_vehicles = 0
 daily_reserved_vehicles = 0
-CAMERA_FILE_PATH = 'camera_urls.json'
+CAMERA_FILE_PATH = 'json_file/camera_urls.json'
 PARKING_FILE_PATH = 'CarParkPos2'
 class ParkingFileEventHandler(FileSystemEventHandler):
     def on_modified(self, event):
@@ -79,6 +79,12 @@ def check_spaces(img, imgThres):
         if shape == 'rect' or shape == 'portrait':
             imgCrop = imgThres[y:y + h, x:x + w]
             count = cv2.countNonZero(imgCrop)
+        elif shape == 'trapezoid':  # Add trapezoid handling here
+            mask = np.zeros(imgThres.shape, dtype=np.uint8)
+            points_np = np.array(points, dtype=np.int32)
+            cv2.fillPoly(mask, [points_np], 255)
+            imgCrop = cv2.bitwise_and(imgThres, mask)
+            count = cv2.countNonZero(imgCrop)
         else:  # 'poly' shape
             mask = np.zeros(imgThres.shape, dtype=np.uint8)
             points_np = np.array(points, dtype=np.int32)
@@ -97,7 +103,7 @@ def check_spaces(img, imgThres):
                 daily_reserved_vehicles += 1
                 posList[i] = (*pos[:6], True, was_occupied)  # Update state in posList
         
-        elif count < 900:  # Free space
+        elif count < 1200:  # Free space
             color = (0, 200, 0)  # Green for free space
             thickness = 5
             
@@ -125,7 +131,7 @@ def check_spaces(img, imgThres):
                 cv2.polylines(img, [points_np], isClosed=True, color=color, thickness=thickness)
                 if points[0]:
                     cv2.putText(img, f'Space {i+1}', (points[0][0] + 10, points[0][1] + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
-                    cv2.putText(img, str(count), (points[0][0], points[0][1] - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
+                    # cv2.putText(img, str(count), (points[0][0], points[0][1] - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
 
     # Update global counters
     free_spaces = spaces
@@ -227,13 +233,15 @@ def add_camera():
         # Load existing camera URLs
         camera_urls = load_camera_urls()
 
-        # Check if the maximum ID is 2
+        # Check if there is already 1 camera (new limit)
+        if len(camera_urls) >= 1:
+            return jsonify({'error': 'Only 2 camera is supported for now.'}), 400
+
+        # Determine the next ID, starting from 2
         current_ids = [camera['id'] for camera in camera_urls]
-        if max(current_ids, default=0) >= 2:
-            return jsonify({'error': 'Cannot add more cameras, maximum of 2 supported for now.'}), 400
-        
-        # Determine the next ID
-        next_id = max(current_ids, default=0) + 1
+        next_id = max(current_ids, default=1) + 1
+        if next_id < 2:
+            next_id = 2
 
         # Add the new camera with the next ID
         camera_urls.append({
@@ -251,6 +259,7 @@ def add_camera():
 
     except Exception as e:
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
+
 
 def get_cameras():
     """Fetch all camera URLs from the JSON file."""

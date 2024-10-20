@@ -271,20 +271,17 @@ function submitIncidentReport() {
 
 // document.addEventListener('DOMContentLoaded', fetchComments);
 
-let cameraIdCounter = 2;
-
 document.getElementById('camera-form').addEventListener('submit', function(event) {
     event.preventDefault();
 
     const cameraUrl = document.getElementById('camera_url').value;
-    const cameraId = cameraIdCounter++;
 
     fetch('/add_camera', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ id: cameraId, url: cameraUrl })
+        body: JSON.stringify({ url: cameraUrl }) // Remove sending ID from client-side
     })
     .then(response => response.text())
     .then(text => {
@@ -308,7 +305,7 @@ document.getElementById('camera-form').addEventListener('submit', function(event
             Swal.fire({
                 icon: 'success',
                 title: 'Success',
-                text: 'Camera Added Succesfully',
+                text: 'Camera Added Successfully',
             });
         }
     })
@@ -320,6 +317,7 @@ document.getElementById('camera-form').addEventListener('submit', function(event
         });
     });
 });
+
 
 function updateCameraFeeds(camera) {
     const container = document.getElementById('camera-feeds-container');

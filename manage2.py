@@ -4,7 +4,7 @@ import numpy as np
 import json
 # File path for parking positions
 parking_file = 'CarParkPos2'
-camera_file = 'camera_urls.json'
+camera_file = 'json_file/camera_urls.json'
 # Function to load parking positions
 def load_pos_list():
     try:
@@ -49,7 +49,8 @@ space_counter = len(posList)
 delete_mode = False
 resize_mode = False
 resize_index = -1
-
+trapezoid_mode = False
+trapezoid_points = []
 def empty(a):
     pass
 
@@ -59,11 +60,22 @@ cv2.resizeWindow("Vals", 640, 240)
 cv2.createTrackbar("Val1", "Vals", 25, 50, empty)
 cv2.createTrackbar("Val2", "Vals", 16, 50, empty)
 cv2.createTrackbar("Val3", "Vals", 5, 50, empty)
+cap = cv2.VideoCapture(cctv_url)
+
 def draw_text_with_background(img, text, position, font=cv2.FONT_HERSHEY_SIMPLEX, font_scale=0.5, font_thickness=1, text_color=(255, 255, 255), background_color=(0, 0, 0)):
     """
     Draws text on an image with a background rectangle for better visibility.
+    
+    Args:
+        img: The image to draw on.
+        text: The text to be drawn.
+        position: The position (x, y) to place the text.
+        font: The font type.
+        font_scale: The scale factor that is multiplied by the font-specific base size.
+        font_thickness: The thickness of the text stroke.
+        text_color: The color of the text.
+        background_color: The color of the text background rectangle.
     """
-    # Get the size of the text
     text_size, _ = cv2.getTextSize(text, font, font_scale, font_thickness)
     text_w, text_h = text_size
 
@@ -74,7 +86,7 @@ def draw_text_with_background(img, text, position, font=cv2.FONT_HERSHEY_SIMPLEX
     # Draw the rectangle background
     cv2.rectangle(img, (rect_x, rect_y - rect_h), (rect_x + rect_w, rect_y), background_color, -1)
 
-    # Draw the text with the new smaller scale and thickness
+    # Draw the text
     cv2.putText(img, text, position, font, font_scale, text_color, font_thickness)
 
 
@@ -92,6 +104,12 @@ def checkSpaces(img, imgThres):
         elif shape == 'portrait':
             imgCrop = imgThres[y:y + h, x:x + w]
             count = cv2.countNonZero(imgCrop)
+        # elif shape == 'trapezoid':  # Add trapezoid handling here
+        #     mask = np.zeros(imgThres.shape, dtype=np.uint8)
+        #     points_np = np.array(points, dtype=np.int32)
+        #     cv2.fillPoly(mask, [points_np], 255)
+        #     imgCrop = cv2.bitwise_and(imgThres, mask)
+        #     count = cv2.countNonZero(imgCrop)
         else:  # 'poly'
             mask = np.zeros(imgThres.shape, dtype=np.uint8)
             points_np = np.array(points, dtype=np.int32)
@@ -103,7 +121,7 @@ def checkSpaces(img, imgThres):
             color = (0, 255, 255)  # Yellow for reserved
             thickness = 5
             reserved_spaces += 1
-        elif count < 900:
+        elif count < 1200:
             color = (0, 200, 0)
             thickness = 5
             spaces += 1
@@ -124,7 +142,7 @@ def checkSpaces(img, imgThres):
                 cv2.polylines(img, [points_np], isClosed=True, color=color, thickness=thickness)
                 if points[0]:  # Ensure at least one point exists
                     draw_text_with_background(img, f'Space {i+1}', (points[0][0] + 10, points[0][1] + 25), text_color=color)
-                    draw_text_with_background(img, str(count), (points[0][0], points[0][1] - 6), text_color=color)
+                    # draw_text_with_background(img, str(count), (points[0][0], points[0][1] - 6), text_color=color)
 
     draw_text_with_background(img, f'Free: {spaces}/{len(posList)}', (50, 60), text_color=(0, 200, 0), background_color=(0, 0, 0))
     draw_text_with_background(img, f'Reserved: {reserved_spaces}', (50, 110), text_color=(0, 255, 255), background_color=(0, 0, 0))
@@ -134,9 +152,12 @@ def checkSpaces(img, imgThres):
         draw_text_with_background(img, "Delete Mode", (50, 150), text_color=(0, 0, 255), background_color=(0, 0, 0))
     if resize_mode:
         draw_text_with_background(img, "Resize Mode", (50, 200), text_color=(0, 255, 0), background_color=(0, 0, 0))
+    if trapezoid_mode:
+        draw_text_with_background(img, "Custom Shape Mode", (50, 200), text_color=(0, 255, 0), background_color=(0, 0, 0))
 
 def mouseClick(events, x, y, flags, params):
-    global posList, space_counter, delete_mode, resize_mode, resize_index
+    global posList, space_counter, delete_mode, resize_mode, resize_index, trapezoid_points
+
     if events == cv2.EVENT_LBUTTONDOWN:
         if delete_mode:
             for i, pos in enumerate(posList):
@@ -156,16 +177,29 @@ def mouseClick(events, x, y, flags, params):
                     space_counter -= 1
                     save_pos_list()
                     break
+                elif shape == 'trapezoid':  # Handling trapezoid deletion
+                    if cv2.pointPolygonTest(np.array(points, dtype=np.int32), (x, y), False) >= 0:
+                        posList.pop(i)
+                        space_counter -= 1
+                        save_pos_list()
+                        break
         elif resize_mode:
             for i, pos in enumerate(posList):
                 px, py, reserved, shape, points, size = pos
                 if shape in ['rect', 'portrait'] and px < x < px + size[0] and py < y < py + size[1]:
                     resize_index = i
                     break
+        elif trapezoid_mode:
+            trapezoid_points.append((x, y))  # Add point to trapezoid
+            if len(trapezoid_points) == 4:  # If 4 points are collected
+                posList.append((0, 0, False, 'trapezoid', trapezoid_points, (0, 0)))
+                trapezoid_points = []  # Reset points for the next trapezoid
+                save_pos_list()
         else:
             posList.append((x, y, False, 'rect', [], (107, 48)))  # Default size (107, 48)
             space_counter += 1
             save_pos_list()
+
     elif events == cv2.EVENT_RBUTTONDOWN:
         for i, pos in enumerate(posList):
             px, py, reserved, shape, points, size = pos
@@ -182,14 +216,20 @@ def mouseClick(events, x, y, flags, params):
                 space_counter -= 1
                 save_pos_list()
                 break
+            elif shape == 'trapezoid':  # Handle trapezoid reservation toggle
+                if cv2.pointPolygonTest(np.array(points, dtype=np.int32), (x, y), False) >= 0:
+                    posList[i] = (px, py, not reserved, shape, points, size)
+                    save_pos_list()
+                    break
+
     elif events == cv2.EVENT_MBUTTONDOWN:
         for i, pos in enumerate(posList):
             px, py, reserved, shape, points, size = pos
             if shape == 'rect' and px < x < px + size[0] and py < y < py + size[1]:
-                posList[i] = (px, py, not reserved,shape, points, size)
+                posList[i] = (px, py, not reserved, shape, points, size)
                 save_pos_list()
                 break
-            elif shape == 'portrait' and px < x < px + size[0] and py < y < py + size[1]:
+            elif shape == 'portrait' and px < x < x + size[0] and py < y < py + size[1]:
                 posList[i] = (px, py, not reserved, shape, points, size)
                 save_pos_list()
                 break
@@ -197,8 +237,15 @@ def mouseClick(events, x, y, flags, params):
                 posList[i] = (px, py, not reserved, shape, points, size)
                 save_pos_list()
                 break
+            elif shape == 'trapezoid':  # Handle trapezoid reservation toggle
+                if cv2.pointPolygonTest(np.array(points, dtype=np.int32), (x, y), False) >= 0:
+                    posList[i] = (px, py, not reserved, shape, points, size)
+                    save_pos_list()
+                    break
+
     elif events == cv2.EVENT_LBUTTONDBLCLK:
         posList.append((x, y, False, 'poly', [(x, y)], (0, 0)))  # Polygon size is managed by points
+
     elif events == cv2.EVENT_MOUSEMOVE and flags == cv2.EVENT_FLAG_LBUTTON:
         if resize_mode and resize_index != -1:
             # Resize the rectangle
@@ -215,6 +262,7 @@ def save_pos_list():
         pickle.dump(posList, f)
 
 # Open video capture for CCTV stream
+# cctv_url = 'rtsp://admin:jerico12@192.168.100.159:5454/stream1'  # Replace with your CCTV stream URL
 cap = cv2.VideoCapture(cctv_url)
 
 # Get original video dimensions
@@ -256,6 +304,9 @@ while True:
 
     # Check for free spaces and draw rectangles
     checkSpaces(img_resized, imgThres)
+    if trapezoid_mode and len(trapezoid_points) > 0:
+        for point in trapezoid_points:
+            cv2.circle(img, point, 5, (0, 255, 0), -1)  # Draw green circles for points
 
     # Display output
     cv2.imshow("Image", img_resized)
@@ -274,8 +325,15 @@ while True:
         delete_mode = False  # Ensure delete mode is turned off
         resize_index = -1  # Reset resize index
         print("Mode switched to Resize Mode" if resize_mode else "Mode switched to Normal Mode")
+    elif key == ord('t'):  # Toggle trapezoid mode
+        trapezoid_mode = not trapezoid_mode
+        print("Mode switched to Custom Shape Mode" if trapezoid_mode else "Mode switched to Normal Mode")
+
 
 # Release video capture and close all windows
 cap.release()
 cv2.destroyAllWindows()
+
+
+
 

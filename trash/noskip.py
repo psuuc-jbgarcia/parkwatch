@@ -81,7 +81,7 @@ frame_count = 0
 stable_plate = None
 stable_count = 0
 
-cap = cv2.VideoCapture('a.mp4')
+cap = cv2.VideoCapture(0)
 
 while cap.isOpened():
 
@@ -89,11 +89,11 @@ while cap.isOpened():
     if not ret:
         break
 
-    if frame_count % 5 == 0:
-        results = model(frame, conf=0.5)
-        current_detected_plates = {}
+    # if frame_count % 5 == 0:
+    results = model(frame, conf=0.5)
+    current_detected_plates = {}
 
-        for result in results:
+    for result in results:
             for box in result.boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 license_plate_crop = frame[y1:y2, x1:x2]
@@ -175,7 +175,7 @@ while cap.isOpened():
                 cv2.putText(frame, normalized_text, (text_x, text_y), font, font_scale, font_color, font_thickness, cv2.LINE_AA)
 
         # Show the video frame with overlayed text
-        cv2.imshow('Plate Number Recognition', frame)
+    cv2.imshow('Plate Number Recognition', frame)
 
     frame_count += 1
 

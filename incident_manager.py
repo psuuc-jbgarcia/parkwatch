@@ -5,8 +5,8 @@ from firebase_admin import firestore
 
 db = firestore.client()
 
-FULL_PARKING_TIMESTAMPS_FILE = 'full_parking_timestamps.json'
-FULL_PARKING_TIMESTAMPS_FILE2 = 'full_parking_timestamps2.json'
+FULL_PARKING_TIMESTAMPS_FILE = 'json_file/full_parking_timestamps.json'
+FULL_PARKING_TIMESTAMPS_FILE2 = 'json_file/full_parking_timestamps2.json'
 
 def report_incident():
     """

@@ -27,11 +27,11 @@ app = Flask(__name__)
 # model_path = 'license_plate_detector.pt'
 daily_total_parked_vehicles = 0
 daily_reserved_vehicles = 0
-FULL_PARKING_TIMESTAMPS_FILE = 'full_parking_timestamps.json'
-DAILY_REPORT_FILE = 'daily_report.json'
-CAMERA_FILE_PATH = 'camera_urls.json'
+FULL_PARKING_TIMESTAMPS_FILE = 'json_file/full_parking_timestamps.json'
+DAILY_REPORT_FILE = 'json_file/daily_report.json'
+CAMERA_FILE_PATH = 'json_file/camera_urls.json'
 cameraIdCounter = 2  # Start camera ID from 2
-camera_urls_path = os.path.join(app.root_path, 'camera_urls.json')
+camera_urls_path = os.path.join(app.root_path, 'json_file/camera_urls.json')
 
 scheduler = BackgroundScheduler(timezone='Asia/Manila')
 
@@ -49,11 +49,11 @@ parking_file = 'CarParkPos'
 timeout_ms = 60000  # Adjust as needed rtsp://admin:jerico12@192.168.100.159:5454/stream1
 cctv = 'rtsp://admin:jerico12@192.168.100.159:5454/stream1'
 vid1='car.mp4'
-#for model
-cap1_web = cv2.VideoCapture(0)
-cap2_web = cv2.VideoCapture(0)
-cap1_flutter = cv2.VideoCapture(0)
-cap2_flutter = cv2.VideoCapture(0)
+# # #for model
+cap1_web = cv2.VideoCapture(1)
+cap2_web = cv2.VideoCapture(1)
+cap1_flutter = cv2.VideoCapture(1)
+cap2_flutter = cv2.VideoCapture(1)
 
 # cap1_web = cv2.VideoCapture(vid1, cv2.CAP_FFMPEG)
 # cap2_web = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
@@ -212,7 +212,7 @@ def checkSpaces(img, imgThres):
                 daily_reserved_vehicles += 1
                 posList[i] = (*pos[:6], True, was_occupied)  # Update state in posList
             reserved_spaces += 1  # Count for displaying purposes
-        elif count < 900:
+        elif count < 1200:
             color = (0, 200, 0)  # Green for free space
             thickness = 5
             if not was_occupied:  # Increment only when transitioning from not occupied to occupied
@@ -239,7 +239,7 @@ def checkSpaces(img, imgThres):
                 cv2.polylines(img, [points_np], isClosed=True, color=color, thickness=thickness)
                 if points[0]:
                     cv2.putText(img, f'Space {i+1}', (points[0][0] + 10, points[0][1] + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
-                    cv2.putText(img, str(count), (points[0][0], points[0][1] - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
+                    # cv2.putText(img, str(count), (points[0][0], points[0][1] - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
 
     # Update global counters
     free_spaces = spaces
@@ -453,14 +453,14 @@ def parking_info_route():
 
 @app.route('/camera_urls.json')
 def get_camera_urls():
-    return send_from_directory(os.getcwd(), 'camera_urls.json')
+    return send_from_directory(os.getcwd(), 'json_file/camera_urls.json')
 @app.route('/edit_camera/<int:camera_id>', methods=['POST'])
 def edit_camera(camera_id):
     data = request.get_json()
     new_url = data.get('url')
 
     # Load your camera URLs from the JSON file
-    with open('camera_urls.json', 'r') as f:
+    with open('json_file/camera_urls.json', 'r') as f:
         cameras = json.load(f)
 
     # Update the camera URL
@@ -470,7 +470,7 @@ def edit_camera(camera_id):
             break
 
     # Save back to the JSON file
-    with open('camera_urls.json', 'w') as f:
+    with open('json_file/camera_urls.json', 'w') as f:
         json.dump(cameras, f)
 
     return jsonify({"message": "Camera updated successfully"}), 200
@@ -479,22 +479,22 @@ def edit_camera(camera_id):
 @app.route('/delete_camera/<int:camera_id>', methods=['DELETE'])
 def delete_camera(camera_id):
     # Load your camera URLs from the JSON file
-    with open('camera_urls.json', 'r') as f:
+    with open('json_file/camera_urls.json', 'r') as f:
         cameras = json.load(f)
 
     # Remove the camera from the list
     cameras = [camera for camera in cameras if camera['id'] != camera_id]
 
     # Save back to the JSON file
-    with open('camera_urls.json', 'w') as f:
+    with open('json_file/camera_urls.json', 'w') as f:
         json.dump(cameras, f)
 
     return jsonify({"message": "Camera deleted successfully"}), 200
 @app.route('/generate_report')
 def generate_report_route():
-    parking_file_path = 'full_parking_timestamps.json'
-    detected_plates_file_path = 'detected_plates.json'
-    daily_report_file_path = 'daily_report.json'
+    parking_file_path = 'json_file/full_parking_timestamps.json'
+    detected_plates_file_path = 'json_file/detected_plates.json'
+    daily_report_file_path = 'json_file/daily_report.json'
     
     # Get the 'date' parameter from the request
     date_str = request.args.get('date')
@@ -522,7 +522,7 @@ def generate_report_route():
 @app.route('/fetch_user_reports')
 def fetch_user_reports():
     db = firestore.client()
-    reports_ref = db.collection('userreports')  # Assuming reports are in the 'admin' collection
+    reports_ref = db.collection('userreports')  # Assuming reports are in the 'userreports' collection
     reports = reports_ref.stream()
 
     report_list = []
@@ -534,10 +534,14 @@ def fetch_user_reports():
             'timestamp': report_data.get('timestamp', 'Unknown')
         })
 
+    # Sort the report_list by timestamp (ascending order)
+    report_list.sort(key=lambda x: x['timestamp'], reverse=True)
+
     return jsonify(report_list)
 
 
+
 if __name__ == '__main__':
-    # run_plate_script()
+    run_plate_script()
     app.run(debug=True, host='0.0.0.0', port=5000,use_reloader=False)
     # use_reloader=False

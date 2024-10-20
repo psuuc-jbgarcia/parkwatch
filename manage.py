@@ -89,12 +89,12 @@ def checkSpaces(img, imgThres):
         elif shape == 'portrait':
             imgCrop = imgThres[y:y + h, x:x + w]
             count = cv2.countNonZero(imgCrop)
-        # elif shape == 'trapezoid':  # Add trapezoid handling here
-        #     mask = np.zeros(imgThres.shape, dtype=np.uint8)
-        #     points_np = np.array(points, dtype=np.int32)
-        #     cv2.fillPoly(mask, [points_np], 255)
-        #     imgCrop = cv2.bitwise_and(imgThres, mask)
-        #     count = cv2.countNonZero(imgCrop)
+        elif shape == 'trapezoid':  # Add trapezoid handling here
+            mask = np.zeros(imgThres.shape, dtype=np.uint8)
+            points_np = np.array(points, dtype=np.int32)
+            cv2.fillPoly(mask, [points_np], 255)
+            imgCrop = cv2.bitwise_and(imgThres, mask)
+            count = cv2.countNonZero(imgCrop)
         else:  # 'poly'
             mask = np.zeros(imgThres.shape, dtype=np.uint8)
             points_np = np.array(points, dtype=np.int32)
@@ -106,7 +106,7 @@ def checkSpaces(img, imgThres):
             color = (0, 255, 255)  # Yellow for reserved
             thickness = 5
             reserved_spaces += 1
-        elif count < 1000:
+        elif count < 1200:
             color = (0, 200, 0)
             thickness = 5
             spaces += 1
@@ -127,7 +127,7 @@ def checkSpaces(img, imgThres):
                 cv2.polylines(img, [points_np], isClosed=True, color=color, thickness=thickness)
                 if points[0]:  # Ensure at least one point exists
                     draw_text_with_background(img, f'Space {i+1}', (points[0][0] + 10, points[0][1] + 25), text_color=color)
-                    draw_text_with_background(img, str(count), (points[0][0], points[0][1] - 6), text_color=color)
+                    # draw_text_with_background(img, str(count), (points[0][0], points[0][1] - 6), text_color=color)
 
     draw_text_with_background(img, f'Free: {spaces}/{len(posList)}', (50, 60), text_color=(0, 200, 0), background_color=(0, 0, 0))
     draw_text_with_background(img, f'Reserved: {reserved_spaces}', (50, 110), text_color=(0, 255, 255), background_color=(0, 0, 0))
@@ -138,7 +138,7 @@ def checkSpaces(img, imgThres):
     if resize_mode:
         draw_text_with_background(img, "Resize Mode", (50, 200), text_color=(0, 255, 0), background_color=(0, 0, 0))
     if trapezoid_mode:
-        draw_text_with_background(img, "Trapezoid Mode", (50, 200), text_color=(0, 255, 0), background_color=(0, 0, 0))
+        draw_text_with_background(img, "Custom Shape Mode", (50, 200), text_color=(0, 255, 0), background_color=(0, 0, 0))
 
 def mouseClick(events, x, y, flags, params):
     global posList, space_counter, delete_mode, resize_mode, resize_index, trapezoid_points
@@ -248,7 +248,7 @@ def save_pos_list():
 
 # Open video capture for CCTV stream
 cctv_url = 'rtsp://admin:jerico12@192.168.100.159:5454/stream1'  # Replace with your CCTV stream URL
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 # Get original video dimensions
 frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -312,7 +312,7 @@ while True:
         print("Mode switched to Resize Mode" if resize_mode else "Mode switched to Normal Mode")
     elif key == ord('t'):  # Toggle trapezoid mode
         trapezoid_mode = not trapezoid_mode
-        print("Mode switched to Trapezoid Mode" if trapezoid_mode else "Mode switched to Normal Mode")
+        print("Mode switched to Custom Shape Mode" if trapezoid_mode else "Mode switched to Normal Mode")
 
 
 # Release video capture and close all windows
