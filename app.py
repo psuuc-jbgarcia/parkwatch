@@ -8,9 +8,8 @@ from watchdog.events import FileSystemEventHandler
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 import subprocess
-from license_plate_detector import LicensePlateDetector
-from firebase.firebase_config import db
 import json,time
+from firebase.firebase_config import db
 import pytz
 import datetime
 import threading
@@ -49,7 +48,7 @@ parking_file = 'CarParkPos'
 timeout_ms = 60000  # Adjust as needed rtsp://admin:jerico12@192.168.100.159:5454/stream1
 cctv = 'rtsp://admin:jerico12@192.168.100.159:5454/stream1'
 vid1='car.mp4'
-# # #for model
+# #for model
 cap1_web = cv2.VideoCapture(1)
 cap2_web = cv2.VideoCapture(1)
 cap1_flutter = cv2.VideoCapture(1)
@@ -116,9 +115,9 @@ def save_daily_report():
 def schedule_daily_report():
     global scheduler
     if not scheduler.get_job('daily_report_job'):
-        trigger = CronTrigger(hour='23', minute='59')
+        # trigger = CronTrigger(hour='23', minute='59')
 
-        # trigger = CronTrigger(minute='*/1')  # For testing purposes, every minute
+        trigger = CronTrigger(minute='*/1')  # For testing purposes, every minute
         scheduler.add_job(save_daily_report, trigger, id='daily_report_job')
         print("Scheduled daily report job.")
     else:
@@ -170,6 +169,7 @@ cv2.createTrackbar("Val1", "Vals", 25, 50, empty)
 cv2.createTrackbar("Val2", "Vals", 16, 50, empty)
 cv2.createTrackbar("Val3", "Vals", 5, 50, empty)
 
+
 def checkSpaces(img, imgThres):
     global space_counter, free_spaces, reserved_spaces
     global daily_total_parked_vehicles, daily_reserved_vehicles
@@ -197,6 +197,12 @@ def checkSpaces(img, imgThres):
         elif shape == 'portrait':
             imgCrop = imgThres[y:y + h, x:x + w]
             count = cv2.countNonZero(imgCrop)
+        elif shape == 'trapezoid':
+            mask = np.zeros(imgThres.shape, dtype=np.uint8)
+            points_np = np.array(points, dtype=np.int32)
+            cv2.fillPoly(mask, [points_np], 255)
+            imgCrop = cv2.bitwise_and(imgThres, mask)
+            count = cv2.countNonZero(imgCrop)
         else:  # 'poly'
             mask = np.zeros(imgThres.shape, dtype=np.uint8)
             points_np = np.array(points, dtype=np.int32)
@@ -212,7 +218,7 @@ def checkSpaces(img, imgThres):
                 daily_reserved_vehicles += 1
                 posList[i] = (*pos[:6], True, was_occupied)  # Update state in posList
             reserved_spaces += 1  # Count for displaying purposes
-        elif count < 1200:
+        elif count < 1500:
             color = (0, 200, 0)  # Green for free space
             thickness = 5
             if not was_occupied:  # Increment only when transitioning from not occupied to occupied
@@ -239,16 +245,15 @@ def checkSpaces(img, imgThres):
                 cv2.polylines(img, [points_np], isClosed=True, color=color, thickness=thickness)
                 if points[0]:
                     cv2.putText(img, f'Space {i+1}', (points[0][0] + 10, points[0][1] + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
-                    # cv2.putText(img, str(count), (points[0][0], points[0][1] - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
+                    cv2.putText(img, str(count), (points[0][0], points[0][1] - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
 
     # Update global counters
     free_spaces = spaces
     reserved_spaces = reserved_spaces
 
-    # Display counters
-    cv2.putText(img, f'Free: {spaces}/{len(posList)}', (50, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 200, 0), 1, lineType=cv2.LINE_AA)
-    cv2.putText(img, f'Reserved: {reserved_spaces}', (50, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, lineType=cv2.LINE_AA)
-
+    # # Display counters
+    # cv2.putText(img, f'Free: {spaces}/{len(posList)}', (50, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 200, 0), 1, lineType=cv2.LINE_AA)
+    # cv2.putText(img, f'Reserved: {reserved_spaces}', (50, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, lineType=cv2.LINE_AA)
 class ParkingFileEventHandler(FileSystemEventHandler):
     def on_modified(self, event):
         if event.src_path == os.path.abspath(parking_file):
@@ -295,8 +300,6 @@ def gen_frames(video_source):
         # Yielding current state of posList along with frame
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
-
 
 def gen_frames_for_flutter(video_source):
     last_time = time.time()
@@ -347,6 +350,62 @@ def gen_frames_for_flutter(video_source):
 
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n' + pos_list_serialized + b'\r\n')
+
+
+# def gen_frames_for_flutter(video_source):
+#     last_time = time.time()
+#     frame_rate = 30  # Desired frame rate
+#     while True:
+#         # Calculate time between frames
+#         current_time = time.time()
+#         elapsed_time = current_time - last_time
+#         if elapsed_time < 1.0 / frame_rate:
+#             continue  # Skip frame to maintain frame rate
+
+#         last_time = current_time  # Update the last frame time
+        
+#         # Read and process frames as usual
+#         success, frame = video_source.read()
+#         if not success:
+#             print("Failed to grab frame, retrying...")
+#             video_source.release()
+#             video_source = cv2.VideoCapture(vid1, cv2.CAP_FFMPEG)
+#             continue
+
+#         # Create a light gray image with the same dimensions as the frame
+#         light_gray_frame = np.full_like(frame, fill_value=(200, 200, 200))  # Set to light gray
+
+#         # Preprocess and apply threshold as in your code
+#         imgGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+#         imgBlur = cv2.GaussianBlur(imgGray, (3, 3), 1)
+
+#         # Get threshold values
+#         val1 = cv2.getTrackbarPos("Val1", "Vals")
+#         val2 = cv2.getTrackbarPos("Val2", "Vals")
+#         val3 = cv2.getTrackbarPos("Val3", "Vals")
+
+#         if val1 % 2 == 0: val1 += 1
+#         if val3 % 2 == 0: val3 += 1
+
+#         imgThres = cv2.adaptiveThreshold(imgBlur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, val1, val2)
+#         imgThres = cv2.medianBlur(imgThres, val3)
+#         kernel = np.ones((3, 3), np.uint8)
+#         imgThres = cv2.dilate(imgThres, kernel, iterations=1)
+
+#         # Check spaces and draw rectangles
+#         checkSpaces(light_gray_frame, imgThres)  # Use the light gray frame here
+
+#         ret, buffer = cv2.imencode('.jpg', light_gray_frame)  # Encode the light gray frame
+#         if not ret:
+#             print("Failed to encode frame")
+#             break
+#         frame_bytes = buffer.tobytes()
+
+#         pos_list_serialized = pickle.dumps(posList)
+
+#         yield (b'--frame\r\n'
+#                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n' + pos_list_serialized + b'\r\n')
+
 
 
 
@@ -435,7 +494,7 @@ def add_camera_route():
 @app.route('/video_feed_parking_space_2', methods=['GET'])
 def get_cameras_route():
     return get_cameras()
-
+################# camera 2
 @app.route('/video_feed/2')
 def video_feed_parking_space_2():
     """Video streaming route for parking space 2."""

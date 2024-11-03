@@ -76,10 +76,10 @@ def check_spaces(img, imgThres):
         w, h = size
 
         # Determine the number of non-zero pixels in the defined shape
-        if shape == 'rect' or shape == 'portrait':
+        if shape in ['rect', 'portrait']:
             imgCrop = imgThres[y:y + h, x:x + w]
             count = cv2.countNonZero(imgCrop)
-        elif shape == 'trapezoid':  # Add trapezoid handling here
+        elif shape == 'trapezoid':
             mask = np.zeros(imgThres.shape, dtype=np.uint8)
             points_np = np.array(points, dtype=np.int32)
             cv2.fillPoly(mask, [points_np], 255)
@@ -102,17 +102,15 @@ def check_spaces(img, imgThres):
             if not was_reserved:
                 daily_reserved_vehicles += 1
                 posList[i] = (*pos[:6], True, was_occupied)  # Update state in posList
-        
-        elif count < 1200:  # Free space
+        elif count < 15000:  # Free space
             color = (0, 200, 0)  # Green for free space
             thickness = 5
             
             # Only increment daily_total_parked_vehicles if transitioning to parked
             if not was_occupied:  
                 daily_total_parked_vehicles += 1
-                posList[i] = (*pos[:6], was_reserved, True)  # Update state in posList
+                posList[i] = (*pos[:6], reserved, True)  # Update state in posList
             spaces += 1  # Count for displaying purposes
-            
         else:  # Occupied space
             color = (0, 0, 200)  # Red for occupied
             thickness = 2
@@ -122,16 +120,16 @@ def check_spaces(img, imgThres):
                 posList[i] = (*pos[:6], False, False)  # Reset states to False
 
         # Draw shapes and text with background
-        if shape == 'rect' or shape == 'portrait':
+        if shape in ['rect', 'portrait']:
             cv2.rectangle(img, (x, y), (x + w, y + h), color, thickness)
-            cv2.putText(img, f'Space {i+1}', (x + 10, y + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
+            cv2.putText(img, f'Space {i + 1}', (x + 10, y + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
         else:  # 'poly' shape
             if points:
                 points_np = np.array(points, dtype=np.int32)
                 cv2.polylines(img, [points_np], isClosed=True, color=color, thickness=thickness)
                 if points[0]:
-                    cv2.putText(img, f'Space {i+1}', (points[0][0] + 10, points[0][1] + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
-                    # cv2.putText(img, str(count), (points[0][0], points[0][1] - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
+                    cv2.putText(img, f'Space {i + 1}', (points[0][0] + 10, points[0][1] + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
+                    # cv2.putText(img, str(count), (points[0][0] + 10, points[0][1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
 
     # Update global counters
     free_spaces = spaces

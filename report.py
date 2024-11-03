@@ -93,7 +93,7 @@ def process_detected_plates_data(detected_plates_data, date_str):
 
 # Main function to generate the report
 def generate_report(parking_file_path, detected_plates_file_path, daily_report_file_path, date_str):
-    report = f"\n\nReport for {date_str}\n"
+    report = ""
 
     # Load and filter parking timestamps
     try:

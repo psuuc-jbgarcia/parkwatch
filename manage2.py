@@ -121,7 +121,7 @@ def checkSpaces(img, imgThres):
             color = (0, 255, 255)  # Yellow for reserved
             thickness = 5
             reserved_spaces += 1
-        elif count < 1200:
+        elif count < 15000:
             color = (0, 200, 0)
             thickness = 5
             spaces += 1
@@ -142,7 +142,7 @@ def checkSpaces(img, imgThres):
                 cv2.polylines(img, [points_np], isClosed=True, color=color, thickness=thickness)
                 if points[0]:  # Ensure at least one point exists
                     draw_text_with_background(img, f'Space {i+1}', (points[0][0] + 10, points[0][1] + 25), text_color=color)
-                    # draw_text_with_background(img, str(count), (points[0][0], points[0][1] - 6), text_color=color)
+                    draw_text_with_background(img, str(count), (points[0][0], points[0][1] - 6), text_color=color)
 
     draw_text_with_background(img, f'Free: {spaces}/{len(posList)}', (50, 60), text_color=(0, 200, 0), background_color=(0, 0, 0))
     draw_text_with_background(img, f'Reserved: {reserved_spaces}', (50, 110), text_color=(0, 255, 255), background_color=(0, 0, 0))

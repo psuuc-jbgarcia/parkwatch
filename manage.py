@@ -106,7 +106,7 @@ def checkSpaces(img, imgThres):
             color = (0, 255, 255)  # Yellow for reserved
             thickness = 5
             reserved_spaces += 1
-        elif count < 1200:
+        elif count < 1500:
             color = (0, 200, 0)
             thickness = 5
             spaces += 1

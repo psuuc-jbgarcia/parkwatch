@@ -206,7 +206,7 @@ def checkSpaces(img, imgThres):
                 daily_reserved_vehicles += 1
                 posList[i] = (*pos[:6], True, was_occupied)  # Update state in posList
             reserved_spaces += 1  # Count for displaying purposes
-        elif count < 1000:
+        elif count < 1200:
             color = (0, 200, 0)  # Green for free space
             thickness = 5
             if not was_occupied:  # Increment only when transitioning from not occupied to occupied

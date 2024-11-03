@@ -81,7 +81,7 @@ frame_count = 0
 stable_plate = None
 stable_count = 0
 
-cap = cv2.VideoCapture('a.mp4')
+cap = cv2.VideoCapture(0)
 
 while cap.isOpened():
 
