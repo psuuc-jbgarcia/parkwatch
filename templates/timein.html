@@ -105,15 +105,13 @@
 
 <!-- Success Feedback Message (Hidden by default) -->
 <div id="feedback-message" class="feedback-message">
-    New vehicle detected: <span id="plate-number"></span>
+    New vehicle arrived: <span id="plate-number"></span>
 </div>
 
 <!-- Header Section -->
 <div class="container-fluid bg-primary text-white p-3">
     <div class="d-flex justify-content-between align-items-center">
         <div class="h4 mb-0">ParkWatch: Time In</div>
-        <!-- Button to Route to Timeout Page -->
-        <a href="/timeout" class="btn btn-light">Go to Timeout Page</a>
     </div>
 </div>
 
@@ -155,52 +153,59 @@
     <script>
         // Set to track the displayed plate numbers to prevent multiple notifications for the same vehicle
         let displayedPlates = new Set();
-
+    
         // Function to display a feedback message with the detected plate number
         function displayFeedbackMessage(plateNumber) {
             // If the plate number has already been shown, do not show the message again
             if (displayedPlates.has(plateNumber)) return;
-
+    
             // Add plate number to the set of displayed plates
             displayedPlates.add(plateNumber);
-
+    
             const feedbackMessage = document.getElementById("feedback-message");
             const plateNumberSpan = document.getElementById("plate-number");
             plateNumberSpan.textContent = plateNumber; // Set the plate number in the message
             feedbackMessage.style.display = "block"; // Show feedback message
-
+    
             setTimeout(() => {
                 feedbackMessage.style.display = "none"; // Hide feedback message after 3 seconds
             }, 3000);
         }
-
+    
         // Function to update the list of detected plates
         function updatePlates(data) {
+            console.log("Received plates data:", data); // Debugging: Check if data is being received correctly
             const platesList = document.getElementById("plates-list");
             platesList.innerHTML = ""; // Clear existing list
-
+    
             // Loop through the plates and add them to the list
             data.forEach(plate => {
                 const li = document.createElement("li");
                 li.classList.add("plate-list-item");
-                li.innerHTML = `
-                    <div class="plate-info">Vehicle: ${plate.plate_number}</div>
+                li.innerHTML = ` 
+                    <div class="plate-info"><b>Vehicle: ${plate.plate_number}</b></div>
                     <div class="plate-time">Arrival: ${plate.arrival_time}</div>
                 `;
                 platesList.appendChild(li);
-
+    
                 // Display feedback message for each new vehicle detected
                 displayFeedbackMessage(plate.plate_number);
             });
         }
-
+    
         // Listen to the SSE stream and update the page as new data arrives
         const eventSource = new EventSource("/stream_plates");
+    
         eventSource.onmessage = function(event) {
             const data = JSON.parse(event.data);
+            console.log("Event source data:", data); // Debugging: Check the SSE data
             updatePlates(data);
         };
+    
+        eventSource.onerror = function(error) {
+            console.error("EventSource failed:", error); // Debugging: Check if there's any error with the SSE connection
+        };
     </script>
-
+    
 </body>
 </html>

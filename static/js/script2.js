@@ -112,13 +112,36 @@ function generateReport() {
                 doc.setFont("helvetica", "normal");
                 doc.setTextColor(0, 0, 0); // Black color for text
                 
-                // Split the report into lines for proper formatting
-                const reportLines = report.split('\n');
-                let y = 40; // Start position for the content
-                for (let line of reportLines) {
-                    doc.text(line, 15, y);
-                    y += 10; // Add space between lines
-                }
+                // Manually creating a table
+                const marginX = 15; // Left margin
+                const marginY = 40; // Start Y position for table
+                const rowHeight = 10; // Height of each row
+                const columnWidth = 40; // Width of each column
+                const columns = ["Plate Number", "Arrival Time", "Departure Time"]; // Table headers
+                
+                // Split the report into rows (assuming each row is in the format: "Plate Number, Arrival Time, Departure Time")
+                const reportRows = report.split('\n').map(line => line.split(','));
+
+                // Draw table header
+                let y = marginY;
+                doc.setFontSize(12);
+                doc.setFont("helvetica", "bold");
+                columns.forEach((col, index) => {
+                    doc.text(col, marginX + index * columnWidth, y);
+                });
+
+                // Draw table rows dynamically based on the report data
+                doc.setFont("helvetica", "normal");
+                reportRows.forEach((row, rowIndex) => {
+                    y += rowHeight; // Move down to the next row
+                    row.forEach((cell, colIndex) => {
+                        doc.text(cell, marginX + colIndex * columnWidth, y);
+                    });
+                });
+
+                // Draw table borders
+                const tableHeight = y + rowHeight + 5;
+                doc.rect(marginX, marginY, columnWidth * columns.length, tableHeight - marginY);
 
                 // Optional: Add page numbers
                 const pageCount = doc.internal.getNumberOfPages();
@@ -145,6 +168,7 @@ function generateReport() {
             });
         });
 }
+
 
 
 ////////////////////////////////////////////////////////////////////////////

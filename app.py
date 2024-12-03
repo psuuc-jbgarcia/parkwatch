@@ -625,7 +625,6 @@ def delete_camera(camera_id):
 @app.route('/generate_report')
 def generate_report_route():
     parking_file_path = 'json_file/full_parking_timestamps.json'
-    detected_plates_file_path = 'json_file/detected_plates.json'
     daily_report_file_path = 'json_file/daily_report.json'
     
     # Get the 'date' parameter from the request
@@ -634,11 +633,9 @@ def generate_report_route():
     if not date_str:
         return jsonify({'error': 'Date parameter is missing'}), 400
     
-    report = None  # Initialize report variable
-    
     try:
-        # Generate the report using the provided date and all necessary file paths
-        report = generate_report(parking_file_path, detected_plates_file_path, daily_report_file_path, date_str)
+        # Generate the report using the provided date and necessary file paths
+        report = generate_report(parking_file_path, daily_report_file_path, date_str)
         
         # Check if the report was generated successfully
         if report:

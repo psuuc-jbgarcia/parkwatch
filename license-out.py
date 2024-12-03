@@ -4,35 +4,32 @@ import cv2
 import os
 import re
 import numpy as np
-import json,time
+import json
+import time
 from datetime import datetime
 from ultralytics import YOLO
+import firebase_admin
+from firebase.firebase_config import db
 
 app = Flask(__name__)
 
+
+
+# Firestore client
+
 # Initialize YOLO model and EasyOCR reader
-model = YOLO('license_plate_detector.pt')
+model = YOLO('license_plate_detector.pt')  # Path to your YOLO model
 reader = easyocr.Reader(['en'])
 
 # Define paths
 video_path = 'test1.mp4'
-output_json_path = 'json_file/detected_plates.json'
 output_images_dir = 'detected_plates'
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)  # Change to video path if needed
 
 if not os.path.exists(output_images_dir):
     os.makedirs(output_images_dir)
 
-# Load existing plate records if they exist
-detected_plates_data = []
-if os.path.exists(output_json_path):
-    if os.path.getsize(output_json_path) > 0:
-        try:
-            with open(output_json_path, 'r') as json_file:
-                detected_plates_data = json.load(json_file)
-        except json.JSONDecodeError as e:
-            print(f"Error loading JSON data: {e}")
-
+# Thresholds for detecting stable plates
 STABILITY_THRESHOLD = 3  # Number of frames for stability
 MIN_PLATE_LENGTH = 5  # Minimum length for a valid plate
 
@@ -68,6 +65,30 @@ def normalize_text(text):
 def is_valid_plate(text):
     pattern = r'^[A-Z0-9\s]+$'
     return re.match(pattern, text)
+
+# Function to update departure time in Firestore
+def update_plate_departure_time(plate_number, departure_time):
+    # Query Firestore to find all documents with the matching plate_number
+    plates_ref = db.collection('detected_plates')
+    query = plates_ref.where('plate_number', '==', plate_number)
+    results = query.stream()
+
+    # Iterate through the results and update the departure time where necessary
+    updated_count = 0  # To track how many documents were updated
+    for plate_doc in results:
+        plate_data = plate_doc.to_dict()
+        # Check if the departure_time is None
+        if plate_data.get('departure_time') is None:
+            plate_ref = plates_ref.document(plate_doc.id)  # Get the document reference
+            plate_ref.update({'departure_time': departure_time})
+            updated_count += 1
+            print(f"Departure time updated for plate {plate_number} in document {plate_doc.id}")
+
+    if updated_count == 0:
+        print(f"No records found with departure_time None for plate {plate_number}.")
+    else:
+        print(f"Updated {updated_count} document(s) for plate {plate_number}.")
+
 
 # Flask route to stream the video feed
 def generate_frames():
@@ -123,24 +144,16 @@ def generate_frames():
                     if stable_count >= STABILITY_THRESHOLD:
                         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-                        existing_entry = next(
-                            (entry for entry in detected_plates_data 
-                             if entry['plate_number'] == stable_plate and entry['departure_time'] is None), 
-                            None
-                        )
+                        # Update Firestore with the departure time
+                        update_plate_departure_time(stable_plate, timestamp)
 
-                        if existing_entry:
-                            existing_entry['departure_time'] = timestamp
-
-                            image_path = os.path.join(output_images_dir, f"{stable_plate}_{timestamp.replace(':', '-')}.jpg")
-                            cv2.imwrite(image_path, license_plate_crop)
-
-                        with open(output_json_path, 'w') as json_file:
-                            json.dump(detected_plates_data, json_file, indent=4)
+                        # Save the license plate image
+                        image_path = os.path.join(output_images_dir, f"{stable_plate}_{timestamp.replace(':', '-')}.jpg")
+                        cv2.imwrite(image_path, license_plate_crop)
 
                         # Send updated plate data via event stream
-                        yield f"data: {json.dumps(detected_plates_data)}\n\n"
-                        
+                        yield f"data: {json.dumps({'plate_number': stable_plate, 'departure_time': timestamp})}\n\n"
+
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     font = cv2.FONT_HERSHEY_SIMPLEX
                     font_scale = 0.7
@@ -157,24 +170,34 @@ def generate_frames():
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
     cap.release()
+POLL_INTERVAL = 5
 
+def get_updated_plates():
+    plates_ref = db.collection('detected_plates')
+    plates_docs = plates_ref.stream()
 
-# Flask route for EventSource stream (SSE)
+    plates = []
+    for plate in plates_docs:
+        plate_data = plate.to_dict()
+        plates.append(plate_data)
+    return plates
 @app.route('/stream_plates')
 def stream_plates():
-    return Response(generate_frames(), content_type='text/event-stream')
+    def generate():
+        while True:
+            # Get updated plate data from Firestore
+            updated_plates = get_updated_plates()
+            plates_json = json.dumps(updated_plates)
+
+            # Send updated data to the client via SSE
+            yield f"data: {plates_json}\n\n"
+            time.sleep(POLL_INTERVAL)
+
+    return Response(generate(), content_type='text/event-stream')
+
 @app.route('/')
 def index():
-    display_data = []
-    for entry in detected_plates_data:
-        entry_copy = entry.copy()
-        if entry.get('departure_time') is None:
-            entry_copy['departure_time'] = 'Still Parked'
-        display_data.append(entry_copy)
-
-    return render_template('timeout.html', detected_plates=display_data)
-
-
+    return render_template('timeout.html')
 
 @app.route('/video_feed')
 def video_feed():
@@ -182,15 +205,16 @@ def video_feed():
 
 @app.route('/detected_plates')
 def detected_plates():
-    display_data = []
-    for entry in detected_plates_data:
-        entry_copy = entry.copy()
-        if entry.get('departure_time') is None:
-            entry_copy['departure_time'] = 'Still Parked'
-        display_data.append(entry_copy)
-    
-    return jsonify(display_data)
+    # Fetch detected plates from Firestore
+    plates_ref = db.collection('detected_plates')
+    plates_docs = plates_ref.stream()
 
+    plates = []
+    for plate in plates_docs:
+        plate_data = plate.to_dict()
+        plates.append(plate_data)
+
+    return jsonify(plates)
 
 if __name__ == "__main__":
-    app.run(debug=True,use_reloader=False,port=5002) 
+    app.run(debug=True, use_reloader=False, port=5002)

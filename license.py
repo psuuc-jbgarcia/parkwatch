@@ -8,9 +8,15 @@ from datetime import datetime
 import time
 from ultralytics import YOLO
 from flask import Flask, Response, render_template, jsonify
+import firebase_admin
+from firebase_admin import credentials, firestore
+from firebase.firebase_config import db
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Initialize Firebase app
+
 
 # Image processing functions
 def preprocess_image(img):
@@ -51,81 +57,75 @@ model = YOLO('license_plate_detector.pt')
 reader = easyocr.Reader(['en'])
 
 # Define paths
-video_path = 'test1.mp4'
-output_json_path = 'json_file/detected_plates.json'
+video_path = 'a.mp4'
 output_images_dir = 'detected_plates'
 
 if not os.path.exists(output_images_dir):
     os.makedirs(output_images_dir)
 
-# Load existing plate records if they exist
-detected_plates_data = []
-if os.path.exists(output_json_path):
-    if os.path.getsize(output_json_path) > 0:
-        try:
-            with open(output_json_path, 'r') as json_file:
-                detected_plates_data = json.load(json_file)
-        except json.JSONDecodeError as e:
-            print(f"Error loading JSON data: {e}. The file may be malformed.")
-            detected_plates_data = []  # Reset to an empty list in case of an error
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-            detected_plates_data = []  # Reset to an empty list in case of an unexpected error
+def save_to_firebase(detected_plate):
+    # Query for plates that have the same plate number
+    existing_plate_ref = db.collection('detected_plates').where('plate_number', '==', detected_plate['plate_number']).get()
 
-# Create a dictionary for easy access to plate data
-plate_states = {entry['plate_number']: entry for entry in detected_plates_data}
+    if len(existing_plate_ref) == 0:
+        # No entry for this plate, add new record as a first-time entry
+        detected_plate['arrival_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        detected_plate['departure_time'] = None  # Still not departed
+        db.collection('detected_plates').add(detected_plate)
+        print(f"New entry added: {detected_plate['plate_number']}")
+    else:
+        # If plate exists, check if it has departure time
+        for doc in existing_plate_ref:
+            plate_data = doc.to_dict()
 
-STABILITY_THRESHOLD = 3  # number of frames for stability
-MIN_PLATE_LENGTH = 5  # Minimum length for a valid plate
+            # If the plate has departure time (it has left), treat as a re-entry
+            if plate_data['departure_time']:
+                # Only save if there is no existing record with arrival_time and departure_time = None
+                detected_plate['arrival_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                detected_plate['departure_time'] = None  # No departure yet
+
+                # Check if there is already an active record (arrival_time exists and departure_time is None)
+                active_plate_ref = db.collection('detected_plates').where('plate_number', '==', detected_plate['plate_number']).where('departure_time', '==', None).get()
+
+                if len(active_plate_ref) == 0:  # If no active record exists, save it
+                    db.collection('detected_plates').add(detected_plate)
+                    print(f"Re-entry added: {detected_plate['plate_number']}")
+                else:
+                    print(f"Re-entry for plate {detected_plate['plate_number']} already exists.")
+                return  # Exit once the re-entry is saved or found
+
+            # If the plate is still in the system (arrival_time exists but no departure_time), do nothing
+            print(f"Plate {detected_plate['plate_number']} already in system and hasn't left yet.")
+
+
+
+
+
+# Initialize video capture
+cap = cv2.VideoCapture(0)
 
 frame_count = 0
 stable_plate = None
 stable_count = 0
 
-cap = cv2.VideoCapture(1)
-
 @app.route('/')
 def index():
     # Render the main page template
-    return render_template('timein.html', detected_plates=detected_plates_data)
-@app.route('/stream_plates')
-def stream_plates_timein():
-    def event_stream():
-        while True:
-            # You can adjust the update frequency to match the video frame rate
-            time.sleep(1)
-            # Stream the latest detected plates
-            yield f"data: {json.dumps(detected_plates_data)}\n\n"
-    
-    return Response(event_stream(), mimetype="text/event-stream")
-import time
-import cv2
-import os
-import json
-from datetime import datetime
+    return render_template('timein.html', detected_plates=[])
+
+
 
 def generate_video():
-    global frame_count, stable_plate, stable_count, plate_states, detected_plates_data
-    max_retries = 5  # Max number of retries in case of failure
-    retry_delay = 2  # Delay between retries in seconds
-
-    retries = 0  # Initialize retry count
+    global frame_count, stable_plate, stable_count
+    STABILITY_THRESHOLD = 3  # number of frames for stability
+    MIN_PLATE_LENGTH = 5  # Minimum length for a valid plate
 
     while cap.isOpened():
         ret, frame = cap.read()
         
         if not ret:
-            if retries < max_retries:
-                retries += 1
-                print(f"Video feed failed. Retrying {retries}/{max_retries}...")
-                time.sleep(retry_delay)  # Wait before retrying
-                continue  # Skip the rest of the loop and try again
-            else:
-                print("Video feed failed after multiple attempts. Exiting.")
-                break  # Exit the loop after max retries
-
-        # Reset retries on successful frame capture
-        retries = 0
+            print("Video feed failed. Exiting.")
+            break  # Exit if video feed fails
 
         if frame_count % 5 == 0:
             results = model(frame, conf=0.5)
@@ -154,7 +154,6 @@ def generate_video():
                     if not is_valid_plate(normalized_text) or len(normalized_text) < MIN_PLATE_LENGTH:
                         continue
 
-                    # Remove any duplicate entries in the same frame
                     current_detected_plates[normalized_text] = time.time()
 
                     # Check stability
@@ -169,49 +168,18 @@ def generate_video():
                         current_time = time.time()
 
                         # If the plate is not already recorded, treat as new entry
-                        if stable_plate not in plate_states:
-                            # Add a new entry for arrival
-                            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                            plate_states[stable_plate] = {
-                                'plate_number': stable_plate,
-                                'arrival_time': timestamp,
-                                'departure_time': None  # No departure time yet
-                            }
-                            detected_plates_data.append({
-                                'plate_number': stable_plate,
-                                'arrival_time': timestamp,
-                                'departure_time': None  # No departure time yet
-                            })
+                        detected_plate = {
+                            'plate_number': stable_plate,
+                            'arrival_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                            'departure_time': None  # No departure time yet
+                        }
 
-                            # Save the cropped image
-                            image_path = os.path.join(output_images_dir, f"{stable_plate}.jpg")
-                            cv2.imwrite(image_path, license_plate_crop)
-                        else:
-                            # Plate has a previous record, check if it left
-                            if plate_states[stable_plate]['departure_time'] is not None:
-                                # The plate has left, create a new entry with updated arrival time
-                                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        # Save the detected plate to Firebase
+                        save_to_firebase(detected_plate)
 
-                                # Create a new entry for re-entry with updated arrival time
-                                plate_states[stable_plate] = {
-                                    'plate_number': stable_plate,
-                                    'arrival_time': timestamp,
-                                    'departure_time': None  # No departure time yet
-                                }
-
-                                # Append the new entry with the updated arrival time
-                                detected_plates_data.append({
-                                    'plate_number': stable_plate,
-                                    'arrival_time': timestamp,
-                                    'departure_time': None  # No departure time yet
-                                })
-
-                                # Save the cropped image for re-entry
-                                image_path = os.path.join(output_images_dir, f"{stable_plate}_reentry.jpg")
-                                cv2.imwrite(image_path, license_plate_crop)
-                        # Save detected plates data to JSON
-                        with open(output_json_path, 'w') as json_file:
-                            json.dump(detected_plates_data, json_file, indent=4)
+                        # # Save cropped image
+                        # image_path = os.path.join(output_images_dir, f"{stable_plate}.jpg")
+                        # cv2.imwrite(image_path, license_plate_crop)
 
                     # Display the frame with plate number
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
@@ -236,11 +204,36 @@ def generate_video():
 
         frame_count += 1
 
-
 @app.route('/video_feed')
 def video_feed():
     # Start the video stream
     return Response(generate_video(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+# Define your get_detected_plates function to fetch data from Firestore
+def get_detected_plates():
+    # Fetch data from Firestore (assuming collection 'detected_plates')
+    plates_ref = db.collection('detected_plates')
+    plates = plates_ref.stream()
+    
+    detected_plates = []
+    for plate in plates:
+        plate_data = plate.to_dict()
+        detected_plates.append({
+            'plate_number': plate_data.get('plate_number'),
+            'arrival_time': plate_data.get('arrival_time')
+        })
+    detected_plates.sort(key=lambda x: datetime.strptime(x['arrival_time'], '%Y-%m-%d %H:%M:%S'), reverse=True)
+
+    return detected_plates
+
+@app.route('/stream_plates')
+def stream_plates():
+    def generate():
+        while True:
+            plates = get_detected_plates()  # Fetch the detected plates from Firestore
+            yield f"data: {json.dumps(plates)}\n\n"
+            time.sleep(1)  # Sleep to simulate a delay between data updates
+    return Response(generate(), content_type='text/event-stream')
+
 if __name__ == "__main__":
-    app.run(debug=True,use_reloader=False,port=5001)
+    app.run(debug=True, use_reloader=False, port=5001)
