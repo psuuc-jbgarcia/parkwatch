@@ -74,7 +74,7 @@ def generate_frames():
     frame_count = 0
     stable_plate = None
     stable_count = 0
-    retry_attempts = 3  # Number of retry attempts for reading frames
+    retry_attempts = 10  # Number of retry attempts for reading frames
     retry_delay = 2     # Delay (in seconds) between retries
 
     while cap.isOpened():
@@ -140,7 +140,7 @@ def generate_frames():
 
                         # Send updated plate data via event stream
                         yield f"data: {json.dumps(detected_plates_data)}\n\n"
-
+                        
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     font = cv2.FONT_HERSHEY_SIMPLEX
                     font_scale = 0.7
@@ -163,10 +163,18 @@ def generate_frames():
 @app.route('/stream_plates')
 def stream_plates():
     return Response(generate_frames(), content_type='text/event-stream')
-
 @app.route('/')
 def index():
-    return render_template('timeout.html')
+    display_data = []
+    for entry in detected_plates_data:
+        entry_copy = entry.copy()
+        if entry.get('departure_time') is None:
+            entry_copy['departure_time'] = 'Still Parked'
+        display_data.append(entry_copy)
+
+    return render_template('timeout.html', detected_plates=display_data)
+
+
 
 @app.route('/video_feed')
 def video_feed():
@@ -174,17 +182,15 @@ def video_feed():
 
 @app.route('/detected_plates')
 def detected_plates():
-    # Create a copy of detected_plates_data for display purposes
     display_data = []
     for entry in detected_plates_data:
-        # Add a temporary field for display
         entry_copy = entry.copy()
         if entry.get('departure_time') is None:
             entry_copy['departure_time'] = 'Still Parked'
         display_data.append(entry_copy)
     
-    # Return the display data to the client
     return jsonify(display_data)
+
 
 if __name__ == "__main__":
     app.run(debug=True,use_reloader=False,port=5002) 

@@ -111,10 +111,6 @@
             padding: 10px;
         }
 
-        .alert {
-            display: none;
-        }
-
         @media (max-width: 768px) {
             .video-feed {
                 height: 300px;
@@ -124,10 +120,29 @@
                 max-height: 300px;
             }
         }
-        .head{
+
+        .head {
             position: sticky;
             top: 0;
             z-index: 100;
+        }
+
+        /* Centering and floating the success message */
+        #feedback-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+            width: auto;
+            max-width: 90%;
+            padding: 15px;
+            font-size: 1.2rem;
+            text-align: center;
+            display: none;
+            border-radius: 10px;
+            background-color: #28a745; /* Green background for success */
+            color: white;
         }
     </style>
 </head>
@@ -183,48 +198,92 @@
         </div>
     </div>
 
-    <script>
-        // Function to display a success message when a new vehicle is detected
-        function displaySuccessMessage() {
-            const successMessage = document.getElementById("success-message");
-            successMessage.style.display = "block"; // Show success message
-            setTimeout(() => {
-                successMessage.style.display = "none"; // Hide success message after 3 seconds
-            }, 3000);
-        }
+    <!-- Feedback Message -->
+    <div id="feedback-message" class="alert alert-success" role="alert" style="display: none;">
+        Vehicle has left the parking area!
+    </div>
 
-        // Function to update the list of detected plates
-        function updatePlates(data) {
-            const platesList = document.getElementById("plates-list");
-            platesList.innerHTML = ""; // Clear existing list
-
-            // Loop through the plates and add them to the list
-            data.forEach(plate => {
-                const li = document.createElement("li");
-                li.classList.add("plate-list-item");
-
-                // Check if departure time is 'Parked' or null, and set as "Still Parked"
-                const departureTime = plate.departure_time === 'Parked' || plate.departure_time === null ? 
-                    `<span class="parked-time">Still Parked</span>` : 
-                    `<span class="departure-time">${plate.departure_time}</span>`;
-
-                li.innerHTML = `
+<script>// Function to display a success message when a new vehicle leaves
+    function displaySuccessMessage(plateNumber) {
+        console.log("Success message triggered! Vehicle left: " + plateNumber);  // Debugging log
+        const successMessage = document.getElementById("feedback-message");
+        successMessage.textContent = `Vehicle ${plateNumber} has left the parking area!`; // Display the specific plate number
+        successMessage.style.display = "block"; // Show success message
+        setTimeout(() => {
+            successMessage.style.display = "none"; // Hide success message after 3 seconds
+        }, 3000);
+    }
+    
+    document.addEventListener("DOMContentLoaded", function () {
+        // Fetch initial data when the page loads
+        fetch("/detected_plates")
+            .then(response => response.json())
+            .then(data => {
+                updatePlates(data);
+            })
+            .catch(error => console.error("Error fetching detected plates:", error));
+    });
+    
+    function updatePlates(data) {
+        const platesList = document.getElementById("plates-list");
+    
+        // Clear the existing list to avoid duplicates
+        platesList.innerHTML = "";
+    
+        data.forEach(plate => {
+            const li = document.createElement("li");
+            li.classList.add("plate-list-item");
+            li.setAttribute("data-plate", plate.plate_number);
+    
+            const departureTime = plate.departure_time === "Still Parked" || plate.departure_time === null
+                ? `<span class="parked-time">Still Parked</span>`
+                : `<span class="departure-time">${plate.departure_time}</span>`;
+    
+            li.innerHTML = `  
+                <div class="plate-info">Vehicle: ${plate.plate_number}</div>
+                <div class="plate-time">Arrival: ${plate.arrival_time}</div>
+                <div class="plate-time">Departure: ${departureTime}</div>
+            `;
+    
+            platesList.appendChild(li);
+        });
+    }
+    
+    const eventSource = new EventSource("/stream_plates");
+    
+    eventSource.onmessage = function (event) {
+        const data = JSON.parse(event.data);
+    
+        // Update or add new plates dynamically
+        data.forEach(plate => {
+            const existingPlate = document.querySelector(`li[data-plate="${plate.plate_number}"]`);
+    
+            if (existingPlate) {
+                const departureTime = plate.departure_time === "Still Parked" || plate.departure_time === null
+                    ? `<span class="parked-time">Still Parked</span>`
+                    : `<span class="departure-time">${plate.departure_time}</span>`;
+    
+                existingPlate.innerHTML = `  
                     <div class="plate-info">Vehicle: ${plate.plate_number}</div>
                     <div class="plate-time">Arrival: ${plate.arrival_time}</div>
                     <div class="plate-time">Departure: ${departureTime}</div>
                 `;
-                platesList.appendChild(li);
-            });
-
-            displaySuccessMessage(); // Show success message for new data
-        }
-
-        // Listen to the SSE stream and update the page as new data arrives
-        const eventSource = new EventSource("/stream_plates");
-        eventSource.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            updatePlates(data);
-        };
+            } else {
+                updatePlates([plate]);
+            }
+        });
+    
+        // Trigger success message when a vehicle leaves
+        data.forEach(plate => {
+            if (plate.departure_time !== "Still Parked" && plate.departure_time !== null) {
+                displaySuccessMessage(plate.plate_number); // Show the plate number that left
+            }
+        });
+    };
+    
+    eventSource.onerror = function () {
+        console.error("Error with EventSource");
+    };
     </script>
 
 </body>
