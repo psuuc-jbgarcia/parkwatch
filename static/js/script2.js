@@ -76,8 +76,6 @@ function generateReport() {
 
     fetch(`/generate_report?date=${selectedDate}`)
         .then(response => {
-            console.log('Raw response:', response);
-
             if (!response.ok) {
                 throw new Error('Failed to fetch the report from the server.');
             }
@@ -91,57 +89,83 @@ function generateReport() {
                     icon: 'error',
                 });
             } else {
-                const { report } = data; 
+                const { report } = data; // Extract the report string
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
 
-                // Set title style
+                // Title Section
                 doc.setFontSize(22);
                 doc.setFont("helvetica", "bold");
-                doc.setTextColor(0, 102, 204); // Blue color
-                doc.text('PARKWATCH', 15, 20); // System name
+                doc.setTextColor(0, 102, 204);
+                doc.text('PARKWATCH', 15, 20);
                 doc.setFontSize(18);
                 doc.text(`Parking Report for ${selectedDate}`, 15, 30);
 
                 // Add a line below the title
-                doc.setDrawColor(0, 0, 0); // Black color for the line
-                doc.line(15, 35, 195, 35); // Draw line from (15,35) to (195,35)
+                doc.setDrawColor(0, 0, 0);
+                doc.line(15, 35, 195, 35);
 
-                // Set a smaller font size for the report content
+                // Split the report into lines
+                const reportLines = report.split('\n'); // <-- Initialize reportLines
+                const colX = [15, 60, 110, 195]; // Column positions
+                const colWidths = [45, 50, 85]; // Column widths
+
+                let y = 45; // Starting Y position
                 doc.setFontSize(12);
                 doc.setFont("helvetica", "normal");
-                doc.setTextColor(0, 0, 0); // Black color for text
-                
-                // Manually creating a table
-                const marginX = 15; // Left margin
-                const marginY = 40; // Start Y position for table
-                const rowHeight = 10; // Height of each row
-                const columnWidth = 40; // Width of each column
-                const columns = ["Plate Number", "Arrival Time", "Departure Time"]; // Table headers
-                
-                // Split the report into rows (assuming each row is in the format: "Plate Number, Arrival Time, Departure Time")
-                const reportRows = report.split('\n').map(line => line.split(','));
+                doc.setTextColor(0, 0, 0);
 
-                // Draw table header
-                let y = marginY;
-                doc.setFontSize(12);
-                doc.setFont("helvetica", "bold");
-                columns.forEach((col, index) => {
-                    doc.text(col, marginX + index * columnWidth, y);
+                // Process the report lines
+                reportLines.forEach(line => {
+                    if (line.trim()) {
+                        if (line.startsWith('Total')) {
+                            // Summary information
+                            doc.text(line, 15, y);
+                            y += 10;
+                        } else if (line.startsWith('Arrival and Departure Information:')) {
+                            // Add a section header
+                            y += 5;
+                            doc.setFont("helvetica", "bold");
+                            doc.text(line, 15, y);
+                            y += 10;
+                            doc.setFont("helvetica", "normal");
+
+                            // Add table headers
+                            doc.setFontSize(10);
+                            doc.text('Plate Number', colX[0] + 2, y);
+                            doc.text('Arrival', colX[1] + 2, y);
+                            doc.text('Departure', colX[2] + 2, y);
+
+                            // Draw borders for the header row
+                            doc.setDrawColor(0, 0, 0);
+                            doc.rect(colX[0], y - 5, colWidths[0], 10); // Plate Number column
+                            doc.rect(colX[1], y - 5, colWidths[1], 10); // Arrival column
+                            doc.rect(colX[2], y - 5, colWidths[2], 10); // Departure column
+
+                            y += 10;
+                        } else {
+                            // Extract data for Plate Number, Arrival, Departure
+                            const parts = line.split(',').map(item => item.trim());
+                            if (parts.length >= 2) {
+                                const plateInfo = parts[0].replace('Plate Number:', '').trim();
+                                const arrivalInfo = parts[1].replace('Arrival:', '').trim();
+                                let departureInfo = parts[2] ? parts[2].replace('Departure:', '').trim() : 'N/A';
+
+                                // Display the data in columns
+                                doc.text(plateInfo, colX[0] + 2, y);
+                                doc.text(arrivalInfo, colX[1] + 2, y);
+                                doc.text(departureInfo, colX[2] + 2, y);
+
+                                // Draw borders for each row
+                                doc.rect(colX[0], y - 5, colWidths[0], 10); // Plate Number column
+                                doc.rect(colX[1], y - 5, colWidths[1], 10); // Arrival column
+                                doc.rect(colX[2], y - 5, colWidths[2], 10); // Departure column
+
+                                y += 10;
+                            }
+                        }
+                    }
                 });
-
-                // Draw table rows dynamically based on the report data
-                doc.setFont("helvetica", "normal");
-                reportRows.forEach((row, rowIndex) => {
-                    y += rowHeight; // Move down to the next row
-                    row.forEach((cell, colIndex) => {
-                        doc.text(cell, marginX + colIndex * columnWidth, y);
-                    });
-                });
-
-                // Draw table borders
-                const tableHeight = y + rowHeight + 5;
-                doc.rect(marginX, marginY, columnWidth * columns.length, tableHeight - marginY);
 
                 // Optional: Add page numbers
                 const pageCount = doc.internal.getNumberOfPages();
@@ -168,6 +192,8 @@ function generateReport() {
             });
         });
 }
+
+
 
 
 

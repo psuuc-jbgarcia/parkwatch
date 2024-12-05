@@ -336,7 +336,7 @@ def add_camera():
         camera_urls = load_camera_urls()
 
         # Check if there is already 1 camera (new limit)
-        if len(camera_urls) >= 2:
+        if len(camera_urls) >= 1:
             return jsonify({'error': 'Only 2 camera is supported for now.'}), 400
 
         # Determine the next ID, starting from 2

@@ -674,6 +674,6 @@ def fetch_user_reports():
 
 
 if __name__ == '__main__':
-    run_plate_scripts()
+    # run_plate_scripts()
     app.run(debug=True, host='0.0.0.0', port=5000,use_reloader=False)
     # use_reloader=False

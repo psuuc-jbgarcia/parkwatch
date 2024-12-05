@@ -148,11 +148,11 @@ function downloadPDF() {
                 // Create a new jsPDF instance
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
-                
+
                 // Set title style
                 doc.setFontSize(22);
                 doc.setFont("helvetica", "bold");
-                doc.setTextColor(0, 102, 204); // Blue color
+                doc.setTextColor(0, 0, 0); // Black color
                 doc.text('PARKWATCH User Reports', 15, 20); // Title
                 doc.setFontSize(18);
                 doc.text(`Report Generated on: ${new Date().toLocaleString()}`, 15, 30);
@@ -169,29 +169,56 @@ function downloadPDF() {
                 let y = 40;
                 const rowHeight = 10;
                 const columnWidth = [60, 80, 40];  // Define column widths
-                
+
                 // Table Header
                 doc.setFontSize(12);
                 doc.setFont("helvetica", "bold");
-                doc.text('Name', x, y);
-                doc.text('Description', x + columnWidth[0], y);
-                doc.text('Timestamp', x + columnWidth[0] + columnWidth[1], y);
+                doc.text('Name', x + 2, y + 7); // Slightly offset text for padding
+                doc.text('Description', x + columnWidth[0] + 2, y + 7);
+                doc.text('Timestamp', x + columnWidth[0] + columnWidth[1] + 2, y + 7);
 
-                y += rowHeight;  // Move to next row
+                // Draw table header border
+                doc.setDrawColor(0, 0, 0); // Black border
+                doc.rect(x, y, columnWidth[0], rowHeight); // Name column
+                doc.rect(x + columnWidth[0], y, columnWidth[1], rowHeight); // Description column
+                doc.rect(x + columnWidth[0] + columnWidth[1], y, columnWidth[2], rowHeight); // Timestamp column
+
+                y += rowHeight; // Move to the next row
 
                 // Table Body
                 doc.setFontSize(10);
                 doc.setFont("helvetica", "normal");
                 data.forEach(report => {
-                    doc.text(report.name, x, y);
-                    doc.text(report.description, x + columnWidth[0], y);
-                    doc.text(report.timestamp, x + columnWidth[0] + columnWidth[1], y);
-                    y += rowHeight;  // Move to the next row
+                    // Add text to the table
+                    doc.text(report.name, x + 2, y + 7);
+                    doc.text(report.description, x + columnWidth[0] + 2, y + 7);
+                    doc.text(report.timestamp, x + columnWidth[0] + columnWidth[1] + 2, y + 7);
+
+                    // Draw borders for each row
+                    doc.rect(x, y, columnWidth[0], rowHeight); // Name column
+                    doc.rect(x + columnWidth[0], y, columnWidth[1], rowHeight); // Description column
+                    doc.rect(x + columnWidth[0] + columnWidth[1], y, columnWidth[2], rowHeight); // Timestamp column
+
+                    y += rowHeight; // Move to the next row
 
                     // Check if the page is about to end
                     if (y > 270) {
                         doc.addPage();
-                        y = 20;  // Reset y for new page
+                        y = 20; // Reset y for new page
+
+                        // Redraw the table header on the new page
+                        doc.setFontSize(12);
+                        doc.setFont("helvetica", "bold");
+                        doc.text('Name', x + 2, y + 7);
+                        doc.text('Description', x + columnWidth[0] + 2, y + 7);
+                        doc.text('Timestamp', x + columnWidth[0] + columnWidth[1] + 2, y + 7);
+
+                        // Draw table header border
+                        doc.rect(x, y, columnWidth[0], rowHeight); // Name column
+                        doc.rect(x + columnWidth[0], y, columnWidth[1], rowHeight); // Description column
+                        doc.rect(x + columnWidth[0] + columnWidth[1], y, columnWidth[2], rowHeight); // Timestamp column
+
+                        y += rowHeight; // Move to the next row
                     }
                 });
 
