@@ -50,22 +50,30 @@ scheduler = BackgroundScheduler(timezone='Asia/Manila')
 parking_file = 'CarParkPos'
 timeout_ms = 60000  # Adjust as needed rtsp://admin:jerico12@192.168.100.159:5454/stream1
 cctv = 'rtsp://admin:jerico12@192.168.100.159:5454/stream1'
-vid1='car.mp4'
-# # for model
-# cap1_web = cv2.VideoCapture(0)
-# cap2_web = cv2.VideoCapture(0)
-# cap1_flutter = cv2.VideoCapture(0)
-# cap2_flutter = cv2.VideoCapture(0)
+with open('./json_file/camera_urls.json', 'r') as file:
+    cameras = json.load(file)
 
-cap1_web = cv2.VideoCapture(vid1, cv2.CAP_FFMPEG)
-cap2_web = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
-cap1_flutter = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
-cap2_flutter = cv2.VideoCapture(vid1,cv2.CAP_FFMPEG)
+# Find the URL for the camera with ID 1
+camera_url = None
+for camera in cameras:
+    if camera["id"] == 1:
+        camera_url = camera["url"]
+        break
+
+# Ensure the camera URL is found
+if not camera_url:
+    raise ValueError("Camera with ID 1 not found in the configuration.")
+
+# Use the fetched camera URL for video capture
+cap1_web = cv2.VideoCapture(camera_url, cv2.CAP_FFMPEG)
+cap2_web = cv2.VideoCapture(camera_url, cv2.CAP_FFMPEG)
+cap1_flutter = cv2.VideoCapture(camera_url, cv2.CAP_FFMPEG)
+cap2_flutter = cv2.VideoCapture(camera_url, cv2.CAP_FFMPEG)
+# Set buffer sizes
 cap1_web.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 cap2_web.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 cap1_flutter.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 cap2_flutter.set(cv2.CAP_PROP_BUFFERSIZE, 3)
-
 def run_plate_scripts():
     try:
         # Run the first instance with camera index 0
@@ -278,7 +286,7 @@ def gen_frames(video_source):
         if not success:
             print("Failed to grab frame, retrying...")
             video_source.release()
-            video_source = cv2.VideoCapture(vid1, cv2.CAP_FFMPEG)
+            video_source = cv2.VideoCapture(camera_url, cv2.CAP_FFMPEG)
             continue
 
         # Preprocess the frame as before
@@ -325,7 +333,7 @@ def gen_frames_for_flutter(video_source):
         if not success:
             print("Failed to grab frame, retrying...")
             video_source.release()
-            video_source = cv2.VideoCapture(vid1, cv2.CAP_FFMPEG)
+            video_source = cv2.VideoCapture(camera_url, cv2.CAP_FFMPEG)
             continue
 
         # Preprocess and apply threshold as in your code
@@ -668,7 +676,96 @@ def fetch_user_reports():
     report_list.sort(key=lambda x: x['timestamp'], reverse=True)
 
     return jsonify(report_list)
+##############################################################################################
+#camera for plate route
+# Route to add a camera for plate
+# Route to add a new camera for plate
+@app.route('/fetch_cameras_plate', methods=['GET'])
+def fetch_cameras_plate():
+    try:
+        # Reference the 'cameras' collection in Firestore
+        cameras_ref = db.collection('cameras')
+        cameras = cameras_ref.stream()  # Fetch all documents in the collection
 
+        camera_list = []
+        for camera in cameras:
+            camera_data = camera.to_dict()  # Convert Firestore document to dictionary
+            camera_list.append({
+                'id': camera.id,  # Unique document ID
+                'cameraUrl': camera_data.get('cameraUrl', 'No URL'),  # Default if missing
+                'cameraPurpose': camera_data.get('cameraPurpose', 'No Purpose')  # Default if missing
+            })
+
+        # Return the list of cameras as a JSON response
+        return jsonify(camera_list), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+@app.route('/fetch_camera_by_id/<camera_id>', methods=['GET'])
+def fetch_camera_by_id(camera_id):
+    try:
+        # Reference the specific camera by ID
+        camera_ref = db.collection('cameras').document(camera_id)
+        camera = camera_ref.get()
+
+        if camera.exists:
+            camera_data = camera.to_dict()
+            return jsonify(camera_data), 200
+        else:
+            return jsonify({'error': 'Camera not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+@app.route('/add_camera_plate', methods=['POST'])
+def add_camera_plate():
+    try:
+        # Get data from the request
+        camera_data = request.get_json()
+        camera_url = camera_data.get('cameraUrl')
+        camera_purpose = camera_data.get('cameraPurpose')
+
+        if not camera_url or not camera_purpose:
+            return jsonify({'error': 'Missing camera URL or purpose'}), 400
+
+        # Add the new camera to Firestore
+        new_camera_ref = db.collection('cameras').add({
+            'cameraUrl': camera_url,
+            'cameraPurpose': camera_purpose
+        })
+
+        return jsonify({'id': new_camera_ref.id, 'message': 'Camera added successfully'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/update_camera/<camera_id>', methods=['PUT'])
+def update_camera(camera_id):
+    try:
+        # Get the data from the request
+        camera_data = request.get_json()
+        camera_url = camera_data.get('cameraUrl')
+        camera_purpose = camera_data.get('cameraPurpose')
+
+        if not camera_url or not camera_purpose:
+            return jsonify({'error': 'Missing camera URL or purpose'}), 400
+
+        # Update the camera document in Firestore
+        camera_ref = db.collection('cameras').document(camera_id)
+        camera_ref.update({
+            'cameraUrl': camera_url,
+            'cameraPurpose': camera_purpose
+        })
+
+        return jsonify({'message': 'Camera updated successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+@app.route('/delete_camera_plate/<camera_id>', methods=['DELETE'])
+def delete_camera_plate(camera_id):
+    try:
+        # Reference the specific camera by ID and delete it
+        camera_ref = db.collection('cameras').document(camera_id)
+        camera_ref.delete()
+
+        return jsonify({'success': True, 'message': 'Camera deleted successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 

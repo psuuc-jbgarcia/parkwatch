@@ -54,6 +54,13 @@
                     <li class="nav-item">
                         <a class="nav-link" id="view-reports-tab" href="#" role="tab" aria-controls="reports" aria-selected="false" onclick="openReportsModal()">View User Reports</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="manage-camera-plate-tab" href="#" role="tab" aria-controls="manage-camera-plate" aria-selected="false" onclick="openCameraPlateModal()">Camera URL for Plate</a>
+                    </li>
+                    
+
+            
+
                 </ul>
             </div>
         </nav>
@@ -64,6 +71,31 @@
         </div>
     </div>
 <!-- Modal -->
+<div class="modal fade" id="cameraPlateModal" tabindex="-1" aria-labelledby="cameraPlateModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cameraPlateModalLabel">Add Camera Plate</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="camera_plate_number" class="form-label">Plate Number</label>
+                    <input type="text" class="form-control" id="camera_plate_number" required>
+                </div>
+                <div class="mb-3">
+                    <label for="camera_id" class="form-label">Camera ID</label>
+                    <input type="text" class="form-control" id="camera_id" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="addCameraPlate()">Add Camera Plate</button>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
 <!-- Modal -->
 <div class="modal fade" id="reportsModal" tabindex="-1" role="dialog" aria-labelledby="reportsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
@@ -89,40 +121,38 @@
     </div>
 </div>
 
-
-
     <!-- Manage Cameras Modal -->
-<div class="modal fade" id="manageCamerasModal" tabindex="-1" aria-labelledby="manageCamerasModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="manageCamerasModalLabel">Manage Cameras</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+    <div class="modal fade" id="manageCamerasModal" tabindex="-1" aria-labelledby="manageCamerasModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="manageCamerasModalLabel">Manage Cameras</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Camera ID</th>
+                                <th>Camera URL</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="camera-list">
+                            <!-- Camera items will be dynamically inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#cameraModal">Add Camera</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+                
             </div>
-            <div class="modal-body">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Camera ID</th>
-                            <th>Camera URL</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="camera-list">
-                        <!-- Camera items will be dynamically inserted here -->
-                    </tbody>
-                </table>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#cameraModal">Add Camera</button>
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-            </div>
-            
         </div>
     </div>
-</div>
 
 <!-- Modal for Generating Report -->
 <div class="modal fade" id="generateReportModal" tabindex="-1" aria-labelledby="generateReportModalLabel" aria-hidden="true">
@@ -162,6 +192,7 @@
             <li class="nav-item">
                 <a class="nav-link" id="parking-tab-v2" data-toggle="tab" href="#parking-v2" role="tab" aria-controls="parking-v2" aria-selected="false">Parking Interface 2 </a>
             </li>
+           
         </ul>
 
         <!-- Tabs Content -->
@@ -392,6 +423,69 @@
     <img id="parking_model_feed"  style="display: none;" src="" alt="Parking Model Feed" />
     <img id="parking_model_feed2"  style="display: none;" src="" alt="Parking Model Feed" />
 
+    <div class="modal fade" id="customCameraManagementModalForPlate" tabindex="-1" aria-labelledby="customCameraManagementModalForPlateLabel" aria-hidden="true">
+        <div class="modal-dialog" style="max-width: 100%;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="customCameraManagementModalForPlateLabel">Manage Camera URL for Plate</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Camera URL</th>
+                                <th>Camera Purpose</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customCameraList">
+                            <!-- Camera rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="openCameraPlateModalForAdd()">Add Camera</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Camera Plate Add/Edit Modal -->
+<div class="modal fade" id="customAddEditCameraModalForPlate" tabindex="-1" aria-labelledby="customAddEditCameraModalForPlateLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="customAddEditCameraModalForPlateLabel">Add Camera Plate</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="camera-plate-form">
+                    <div class="mb-3">
+                        <label for="customCameraPlateUrl" class="form-label">Camera Plate URL</label>
+                        <input type="text" class="form-control" id="customCameraPlateUrl" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="customCameraPlatePurpose" class="form-label">Camera Plate Purpose</label>
+                        <select class="form-select" id="customCameraPlatePurpose" required>
+                            <option value="time_in">Time In</option>
+                            <option value="time_out">Time Out</option>
+                        </select>
+                    </div>
+                    <input type="hidden" id="customCameraPlateId"> <!-- Hidden input for camera plate ID when editing -->
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="saveCameraPlate()">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <!-- jQuery (required for Bootstrap) -->
@@ -411,6 +505,8 @@
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
     <script src="{{ url_for('static', filename='js/script2.js') }}"></script>
     <script src="{{ url_for('static', filename='js/script3.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/camera.js') }}"></script>
+
     <!-- <script>
         let intervalId1;
         let intervalId2;

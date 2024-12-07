@@ -1,7 +1,7 @@
 import cv2
 import pickle
 import numpy as np
-
+import json
 # File path for parking positions
 parking_file = 'CarParkPos'
 
@@ -248,7 +248,23 @@ def save_pos_list():
 
 # Open video capture for CCTV stream
 cctv_url = 'rtsp://admin:jerico12@192.168.100.159:5454/stream1'  # Replace with your CCTV stream URL
-cap = cv2.VideoCapture('car.mp4')
+with open('./json_file/camera_urls.json', 'r') as file:
+    cameras = json.load(file)
+
+# Find the URL for the camera with ID 1
+camera_url = None
+for camera in cameras:
+    if camera["id"] == 1:
+        camera_url = camera["url"]
+        break
+
+# Ensure the camera URL is found
+if not camera_url:
+    raise ValueError("Camera with ID 1 not found in the configuration.")
+
+# Use the fetched camera URL for video capture
+cap = cv2.VideoCapture(camera_url, cv2.CAP_FFMPEG)
+
 
 # Get original video dimensions
 frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
