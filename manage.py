@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 import json
 # File path for parking positions
-parking_file = 'CarParkPos'
+parking_file = 'CarParkPos1'
 
 # Function to load parking positions
 def load_pos_list():

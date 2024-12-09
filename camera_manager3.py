@@ -12,7 +12,7 @@ from firebase_admin import storage
 daily_total_parked_vehicles = 0
 daily_reserved_vehicles = 0
 CAMERA_FILE_PATH = 'json_file/camera_urls.json'
-PARKING_FILE_PATH = 'CarParkPos2'
+PARKING_FILE_PATH = 'CarParkPos3'
 class ParkingFileEventHandler(FileSystemEventHandler):
     def on_modified(self, event):
         if event.src_path == os.path.abspath(PARKING_FILE_PATH):
@@ -105,7 +105,7 @@ def check_spaces(img, imgThres):
             if not was_reserved:
                 daily_reserved_vehicles += 1
                 posList[i] = (*pos[:6], True, was_occupied)  # Update state in posList
-        elif count < 15000:  # Free space
+        elif count < 1500:  # Free space
             color = (0, 200, 0)  # Green for free space
             thickness = 5
             
@@ -142,7 +142,7 @@ def check_spaces(img, imgThres):
     # cv2.putText(img, f'Reserved: {reserved_spaces}', (50, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, lineType=cv2.LINE_AA)
 
 
-def generate_frames(video_source):
+def generate_frames3(video_source):
     cap = cv2.VideoCapture(video_source)
     
     while True:
@@ -191,12 +191,12 @@ def generate_frames(video_source):
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n' + pos_list_serialized + b'\r\n')
 
-def upload_frame_to_firebase2(frame_bytes, file_name):
+def upload_frame_to_firebase3(frame_bytes, file_name):
     # Define the folder name
     folder_name = 'parkingmodel'
     
     # Combine the folder name with the file name
-    full_file_name = f"{folder_name}/parkingmodel2"
+    full_file_name = f"{folder_name}/parkingmodel3"
     
     # Get the bucket
     bucket = storage.bucket()
@@ -213,7 +213,7 @@ def upload_frame_to_firebase2(frame_bytes, file_name):
     download_url = blob.public_url
     # print(f"Image uploaded and accessible at: {download_url}")
 
-def parking_model2(video_source):
+def parking_model3(video_source):
     last_time = time.time()
     frame_rate = 30  # Desired frame rate
     
@@ -285,7 +285,8 @@ def parking_model2(video_source):
         frame_bytes = buffer.tobytes()
 
         # Upload the frame to Firebase
-        upload_frame_to_firebase2(frame_bytes, 'parking_model2.jpg')  # Save as 'parking_frame.jpg' or use a dynamic name
+        time.sleep(10)
+        upload_frame_to_firebase3(frame_bytes, 'parking_model3.jpg')  # Save as 'parking_frame.jpg' or use a dynamic name
         pos_list_serialized = pickle.dumps(posList)
 
         # Yield the frame and serialized data for streaming
@@ -293,20 +294,9 @@ def parking_model2(video_source):
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n' +
                b'Content-Type: application/octet-stream\r\n\r\n' + pos_list_serialized + b'\r\n')
 
-def load_camera_urls():
-    """Load camera URLs from the JSON file."""
-    try:
-        with open(CAMERA_FILE_PATH, 'r') as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return []
 
-def save_camera_urls(camera_urls):
-    """Save camera URLs to the JSON file."""
-    with open(CAMERA_FILE_PATH, 'w') as file:
-        json.dump(camera_urls, file, indent=4)
 
-def get_video_source(camera_id):
+def get_video_source3(camera_id):
     try:
         with open(CAMERA_FILE_PATH) as f:
             cameras = json.load(f)
@@ -318,63 +308,8 @@ def get_video_source(camera_id):
         print(f"Error reading JSON file: {e}")
         return None
 
-def add_camera():
-    """Add a new camera from a JSON POST request."""
-    if request.content_type != 'application/json':
-        return jsonify({'error': 'Content-type must be application/json'}), 400
 
-    try:
-        data = request.json
-        if not data:
-            raise ValueError("No JSON data received")
-
-        camera_url = data.get('url')
-        if not camera_url:
-            raise ValueError("Invalid data: 'url' is required")
-
-        # Load existing camera URLs
-        camera_urls = load_camera_urls()
-
-        # Check if there is already 1 camera (new limit)
-        if len(camera_urls) >= 2:
-            return jsonify({'error': 'Only 2 camera is supported for now.'}), 400
-
-        # Determine the next ID, starting from 2
-        current_ids = [camera['id'] for camera in camera_urls]
-        next_id = max(current_ids, default=1) + 1
-        if next_id < 2:
-            next_id = 2
-
-        # Add the new camera with the next ID
-        camera_urls.append({
-            'id': next_id,
-            'url': camera_url
-        })
-
-        # Save updated list back to the JSON file
-        save_camera_urls(camera_urls)
-
-        return jsonify({'message': 'Camera added successfully', 'camera': {'id': next_id, 'url': camera_url}}), 200
-
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-
-    except Exception as e:
-        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
-
-
-def get_cameras():
-    """Fetch all camera URLs from the JSON file."""
-    try:
-        cameras = load_camera_urls()
-        
-        if not cameras:
-            return jsonify({"error": "No cameras available"}), 404
-
-        return jsonify(cameras), 200
-    except Exception as e:
-        return jsonify({"error": "Failed to load cameras"}), 500
-def get_parking_info2():
+def get_parking_info3():
     global posList, free_spaces, reserved_spaces
     total_vehicles = len(posList) - free_spaces
 

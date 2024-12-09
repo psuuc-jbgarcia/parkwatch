@@ -192,6 +192,11 @@
             <li class="nav-item">
                 <a class="nav-link" id="parking-tab-v2" data-toggle="tab" href="#parking-v2" role="tab" aria-controls="parking-v2" aria-selected="false">Parking Interface 2 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link" id="parking-tab-v3" data-toggle="tab" href="#parking-v3" role="tab" aria-controls="parking-v3" aria-selected="false">Parking Interface 3</a>
+            </li>
+            
+            
            
         </ul>
 
@@ -207,7 +212,7 @@
                                 <div class="card-body d-flex align-items-center">
                                     <img src="../static/total-vehicles-icon.png" alt="Total Vehicles">
                                     <div>
-                                        <h2 id="total-vehicles">9</h2>
+                                        <h2 id="total-vehicles">0</h2>
                                         <p>Total Vehicles Parked</p>
                                     </div>
                                 </div>
@@ -245,7 +250,7 @@
                     </div>
                 </div>
             </div>
-
+<!-- end of tab1 -->
             <div class="tab-pane fade" id="parking-v2" role="tabpanel" aria-labelledby="parking-tab-v2">
                 <div class="main-content">
                     <!-- Info Boxes Section -->
@@ -290,7 +295,57 @@
                     </div>
                 </div>
             </div>
+            <!-- end of tab 2 -->
+            <div class="tab-pane fade" id="parking-v3" role="tabpanel" aria-labelledby="parking-tab-v3">
+                <div class="main-content">
+                    <!-- Info Boxes Section -->
+                    <div class="info-boxes">
+                        <div class="info-box">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body d-flex align-items-center">
+                                    <img src="../static/total-vehicles-icon.png" alt="Total Vehicles">
+                                    <div>
+                                        <h2 id="total-vehicles3">1</h2>
+                                        <p>Total Vehicles Parked</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="info-box">
+                            <div class="card bg-success text-white">
+                                <div class="card-body d-flex align-items-center">
+                                    <img src="/static/parking-available-icon.png" alt="Parking Available">
+                                    <div>
+                                        <h2 id="parking-available3">1</h2>
+                                        <p>Parking Slot Available</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="info-box">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body d-flex align-items-center">
+                                    <img src="/static/slots-reserved-icon.png" alt="Slots Reserved">
+                                    <div>
+                                        <h2 id="slots-reserved3">1</h2>
+                                        <p>Total Slot Reserved</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- CCTV Feed Section (without Parking Model) -->
+                    <div class="cctv-container3">
+                        <img id="camera-feed3" src="" alt="Live Video Feed" class="img-fluid">
+                    </div>
+                    
+                </div>
+            </div>
+            
+            <!-- end of tab 3 -->
         </div>
+      
     </div>
 <!-- Edit Camera Modal -->
 <div class="modal fade" id="editCameraModal" tabindex="-1" aria-labelledby="editCameraModalLabel" aria-hidden="true">
@@ -414,14 +469,25 @@
                 </div>
                 
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" onclick="runManagement()">Run Management</button>
-                    <button id="run-management-2-modal-btn" class="btn btn-secondary" onclick="runManagement2()">Run Management 2</button>
+                    <div class="row w-100">
+                        <div class="col-4 text-center">
+                            <button type="button" class="btn btn-primary" onclick="runManagement()">Run Management</button>
+                        </div>
+                        <div class="col-4 text-center">
+                            <button id="run-management-2-modal-btn" class="btn btn-secondary" onclick="runManagement2()">Run Management 2</button>
+                        </div>
+                        <div class="col-4 text-center">
+                            <button id="run-management-3-modal-btn" class="btn btn-secondary" onclick="runManagement3()">Run Management 3</button>
+                        </div>
+                    </div>
                 </div>
+                
             </div>
         </div>
     </div>
     <img id="parking_model_feed"  style="display: none;" src="" alt="Parking Model Feed" />
     <img id="parking_model_feed2"  style="display: none;" src="" alt="Parking Model Feed" />
+    <img id="parking_model_feed3"  style="display: none;" src="" alt="Parking Model Feed" />
 
     <div class="modal fade" id="customCameraManagementModalForPlate" tabindex="-1" aria-labelledby="customCameraManagementModalForPlateLabel" aria-hidden="true">
         <div class="modal-dialog" style="max-width: 100%;">
@@ -458,7 +524,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="customAddEditCameraModalForPlateLabel">Add Camera Plate</h5>
+                <h5 class="modal-title" id="customAddEditCameraModalForPlateLabel">Add/Edit  Camera Plate</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -505,50 +571,57 @@
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
     <script src="{{ url_for('static', filename='js/script2.js') }}"></script>
     <script src="{{ url_for('static', filename='js/script3.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/camera.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/camera3.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/plate.js') }}"></script>
 
-    <!-- <script>
-        let intervalId1;
-        let intervalId2;
-    
-        // Fetch the first parking model
+    <script>let intervalId1 = null;
+        let intervalId2 = null;
+        
         function fetchParkingModel1() {
-            // Set the video source to the parking model route for camera 1
-            document.getElementById('parking_model_feed').src = "/parking_model/1"; // camera_id 1
+            console.log(`[INFO] Fetching Parking Model 1 at ${new Date().toLocaleTimeString()}`);
+            document.getElementById('parking_model_feed').src = "/parking_model/1?" + new Date().getTime();
         }
-    
-        // Clear the previous interval (if any) for the first feed
+        
+        function fetchParkingModel2() {
+            console.log(`[INFO] Fetching Parking Model 2 at ${new Date().toLocaleTimeString()}`);
+            document.getElementById('parking_model_feed2').src = "/parking_model2?" + new Date().getTime();
+        }
+        function fetchParkingModel3() {
+            console.log(`[INFO] Fetching Parking Model 2 at ${new Date().toLocaleTimeString()}`);
+            document.getElementById('parking_model_feed3').src = "/parking_model3?" + new Date().getTime();
+        }
         function startFetchingParkingModel1() {
             if (intervalId1) {
-                clearInterval(intervalId1);  // Clear the previous interval for feed 1
+                clearInterval(intervalId1);
+                console.log("[INFO] Cleared existing interval for Parking Model 1");
             }
-    
-            // Start a new interval to fetch the parking model for feed 1 every 20 seconds
-            intervalId1 = setInterval(fetchParkingModel1, 20000); // 20000 ms = 20 seconds
+            intervalId1 = setInterval(fetchParkingModel1, 20000);
+            console.log("[INFO] Started interval for Parking Model 1");
         }
-    
-        // Call the function to start fetching the first parking model initially
-        startFetchingParkingModel1();
-    
-        // Fetch the second parking model
-        function fetchParkingModel2() {
-            // Set the video source to the parking model route for camera 2
-            document.getElementById('parking_model_feed2').src = "/parking_model2"; // camera_id 2
-        }
-    
-        // Clear the previous interval (if any) for the second feed
+        
         function startFetchingParkingModel2() {
             if (intervalId2) {
-                clearInterval(intervalId2);  // Clear the previous interval for feed 2
+                clearInterval(intervalId2);
+                console.log("[INFO] Cleared existing interval for Parking Model 2");
             }
-    
-            // Start a new interval to fetch the parking model for feed 2 every 20 seconds
-            intervalId2 = setInterval(fetchParkingModel2, 20000); // 20000 ms = 20 seconds
+            intervalId2 = setInterval(fetchParkingModel2, 20000);
+            console.log("[INFO] Started interval for Parking Model 2");
         }
-    
-        // Call the function to start fetching the second parking model initially
+        function startFetchingParkingModel3() {
+            if (intervalId2) {
+                clearInterval(intervalId2);
+                console.log("[INFO] Cleared existing interval for Parking Model 3");
+            }
+            intervalId2 = setInterval(fetchParkingModel3, 20000);
+            console.log("[INFO] Started interval for Parking Model 3");
+        }
+        
+        
+        // Initialize
+        startFetchingParkingModel1();
         startFetchingParkingModel2();
-    </script> -->
+        startFetchingParkingModel3()
+        </script>
     
 </body>
 

@@ -13,7 +13,9 @@ from firebase.firebase_config import db
 import pytz
 import datetime
 import threading
-from camera_manager import load_camera_urls, parking_model2, save_camera_urls, get_video_source, generate_frames, add_camera, get_cameras,get_parking_info2
+from camera_manager2 import load_camera_urls, parking_model2, save_camera_urls, get_video_source, generate_frames, add_camera, get_cameras,get_parking_info2
+from camera_manager3 import *
+
 from incident_manager import report_incident, save_full_parking_timestamp, fetch_comments, save_full_parking_timestamp2
 from flask import send_file,abort
 from report import generate_report,process_parking_data  # Import the generate_report function
@@ -47,7 +49,7 @@ scheduler = BackgroundScheduler(timezone='Asia/Manila')
 # Copy code
 # cap1_web.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000)  # Set a longer timeout
 # File path for parking positions
-parking_file = 'CarParkPos'
+parking_file = 'CarParkPos1'
 timeout_ms = 60000  # Adjust as needed rtsp://admin:jerico12@192.168.100.159:5454/stream1
 cctv = 'rtsp://admin:jerico12@192.168.100.159:5454/stream1'
 with open('./json_file/camera_urls.json', 'r') as file:
@@ -463,6 +465,7 @@ def parking_model(video_source):
         frame_bytes = buffer.tobytes()
 
         # Upload the frame to Firebase
+        time.sleep(10)
         upload_frame_to_firebase(frame_bytes, 'parking_model1.jpg')  # Save as 'parking_frame.jpg' or use a dynamic name
         pos_list_serialized = pickle.dumps(posList)
 
@@ -518,12 +521,6 @@ def parking_model_route(camera_id):
         print(f"Error in parking_model: {e}")
         return "Error occurred", 500
 
-@app.route('/parking_model2')
-def stream():
-    video_source = get_video_source(2)
-    source= cv2.VideoCapture(video_source,cv2.CAP_FFMPEG)
-    return Response(parking_model2(source),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
 @app.route('/get_parking_info')
 def get_parking_info():
     global posList, free_spaces, reserved_spaces
@@ -553,7 +550,15 @@ def run_management2():
     except Exception as e:
         print(f"Error running management script: {e}")
         return str(e), 500
-    
+@app.route('/run_management3', methods=['GET'])
+def run_management3():
+    try:
+        result = subprocess.run(['python', 'manage3.py'], capture_output=True, text=True)
+        print(result.stdout)
+        return result.stdout, 200
+    except Exception as e:
+        print(f"Error running management script: {e}")
+        return str(e), 500
 @app.route('/report_incident', methods=['POST'])
 def report_incident_route():
     return report_incident()
@@ -589,7 +594,40 @@ def video_feed_parking_space_2():
 def parking_info_route():
     return get_parking_info2()
 
+@app.route('/parking_model2')
+def stream():
+    video_source = get_video_source(2)
+    source= cv2.VideoCapture(video_source,cv2.CAP_FFMPEG)
+    return Response(parking_model2(source),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+################################# camera 3
 
+@app.route('/video_feed/3')
+def video_feed_parking_space_3():
+    video_source = get_video_source3(3)  # Assuming this function returns the correct video source
+    if video_source:
+        return Response(generate_frames3(video_source),
+                         mimetype='multipart/x-mixed-replace; boundary=frame')
+    else:  
+        return "Video source not found.", 404
+
+
+
+@app.route('/parking_model3')
+def parking_model3_stream():
+    video_source = get_video_source3(3)  # Check if this is valid and returns a usable source
+    source = cv2.VideoCapture(video_source, cv2.CAP_FFMPEG)  # Ensure correct video source is passed
+    return Response(parking_model3(source),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+def parking_model3_stream():
+    video_source = get_video_source3(3)
+    source = cv2.VideoCapture(video_source, cv2.CAP_FFMPEG)
+    return Response(parking_model3(source),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+@app.route('/get_parking_info3', methods=['GET'])
+def parking_info_route3():
+    return get_parking_info3()
 
 @app.route('/camera_urls.json')
 def get_camera_urls():
@@ -615,7 +653,6 @@ def edit_camera(camera_id):
 
     return jsonify({"message": "Camera updated successfully"}), 200
 
-
 @app.route('/delete_camera/<int:camera_id>', methods=['DELETE'])
 def delete_camera(camera_id):
     # Load your camera URLs from the JSON file
@@ -629,7 +666,18 @@ def delete_camera(camera_id):
     with open('json_file/camera_urls.json', 'w') as f:
         json.dump(cameras, f)
 
-    return jsonify({"message": "Camera deleted successfully"}), 200
+    # Determine the corresponding parking post file based on camera_id
+    parking_post_file = f'CarParkPos{camera_id}'
+
+    # Check if the file exists and delete it
+    if os.path.exists(parking_post_file):
+        os.remove(parking_post_file)
+        print(f'{parking_post_file} has been deleted.')
+    else:
+        print(f'{parking_post_file} does not exist.')
+
+    return 'Camera and corresponding parking post file deleted successfully.'
+
 @app.route('/generate_report')
 def generate_report_route():
     parking_file_path = 'json_file/full_parking_timestamps.json'

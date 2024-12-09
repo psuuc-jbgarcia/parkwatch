@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 import json
 # File path for parking positions
-parking_file = 'CarParkPos2'
+parking_file = 'CarParkPos3'
 camera_file = 'json_file/camera_urls.json'
 # Function to load parking positions
 def load_pos_list():
@@ -41,7 +41,7 @@ for i in range(len(posList)):
         posList[i] = (*posList[i], [],(107, 107))
     elif len(posList[i]) == 5:
         posList[i] = (*posList[i],(107, 107))
-cctv_url = get_camera_url(2)
+cctv_url = get_camera_url(3)
 # Counter for the number of parking spaces
 space_counter = len(posList)
 
@@ -121,7 +121,7 @@ def checkSpaces(img, imgThres):
             color = (0, 255, 255)  # Yellow for reserved
             thickness = 5
             reserved_spaces += 1
-        elif count < 1200:
+        elif count < 1500:
             color = (0, 200, 0)
             thickness = 5
             spaces += 1

@@ -13,7 +13,7 @@ from firebase.firebase_config import db
 import pytz
 import datetime
 import threading
-from camera_manager import load_camera_urls, save_camera_urls, get_video_source, generate_frames, add_camera, get_cameras,get_parking_info2
+from camera_manager2 import load_camera_urls, save_camera_urls, get_video_source, generate_frames, add_camera, get_cameras,get_parking_info2
 from incident_manager import report_incident, save_full_parking_timestamp, fetch_comments, save_full_parking_timestamp2
 from flask import send_file,abort
 from report import generate_report,process_parking_data  # Import the generate_report function
