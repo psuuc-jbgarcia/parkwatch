@@ -96,7 +96,6 @@
     </div>
 </div>
 </div>
-<!-- Modal -->
 <div class="modal fade" id="reportsModal" tabindex="-1" role="dialog" aria-labelledby="reportsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);">
@@ -107,6 +106,15 @@
                 </button>
             </div>
             <div class="modal-body" style="font-size: 16px; padding: 20px;">
+                <!-- Date Range Form -->
+                <div class="form-group">
+                    <label for="startDate">Start Date:</label>
+                    <input type="date" class="form-control" id="startDate" />
+                </div>
+                <div class="form-group">
+                    <label for="endDate">End Date:</label>
+                    <input type="date" class="form-control" id="endDate" />
+                </div>
                 <!-- Report List Container -->
                 <ul id="reportList" class="list-group mb-3" style="max-height: 400px; overflow-y: auto;">
                     <!-- Dynamic reports will be inserted here -->
@@ -120,6 +128,8 @@
         </div>
     </div>
 </div>
+
+
 
     <!-- Manage Cameras Modal -->
     <div class="modal fade" id="manageCamerasModal" tabindex="-1" aria-labelledby="manageCamerasModalLabel" aria-hidden="true">
@@ -167,8 +177,12 @@
             <div class="modal-body">
                 <form id="report-form">
                     <div class="form-group">
-                        <label for="report-date">Select Date:</label>
-                        <input type="date" id="report-date" class="form-control" required>
+                        <label for="start-date">Start Date:</label>
+                        <input type="date" id="start-date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="end-date">End Date:</label>
+                        <input type="date" id="end-date" class="form-control" required>
                     </div>
                 </form>
             </div>
@@ -179,6 +193,7 @@
         </div>
     </div>
 </div>
+
 
     <!-- Main Content -->
     <div class="container mt-4">
@@ -574,53 +589,58 @@
     <script src="{{ url_for('static', filename='js/camera3.js') }}"></script>
     <script src="{{ url_for('static', filename='js/plate.js') }}"></script>
 
-    <script>let intervalId1 = null;
-        let intervalId2 = null;
-        
-        function fetchParkingModel1() {
-            console.log(`[INFO] Fetching Parking Model 1 at ${new Date().toLocaleTimeString()}`);
-            document.getElementById('parking_model_feed').src = "/parking_model/1?" + new Date().getTime();
-        }
-        
-        function fetchParkingModel2() {
-            console.log(`[INFO] Fetching Parking Model 2 at ${new Date().toLocaleTimeString()}`);
-            document.getElementById('parking_model_feed2').src = "/parking_model2?" + new Date().getTime();
-        }
-        function fetchParkingModel3() {
-            console.log(`[INFO] Fetching Parking Model 2 at ${new Date().toLocaleTimeString()}`);
-            document.getElementById('parking_model_feed3').src = "/parking_model3?" + new Date().getTime();
-        }
-        function startFetchingParkingModel1() {
-            if (intervalId1) {
-                clearInterval(intervalId1);
-                console.log("[INFO] Cleared existing interval for Parking Model 1");
-            }
-            intervalId1 = setInterval(fetchParkingModel1, 20000);
-            console.log("[INFO] Started interval for Parking Model 1");
-        }
-        
-        function startFetchingParkingModel2() {
-            if (intervalId2) {
-                clearInterval(intervalId2);
-                console.log("[INFO] Cleared existing interval for Parking Model 2");
-            }
-            intervalId2 = setInterval(fetchParkingModel2, 20000);
-            console.log("[INFO] Started interval for Parking Model 2");
-        }
-        function startFetchingParkingModel3() {
-            if (intervalId2) {
-                clearInterval(intervalId2);
-                console.log("[INFO] Cleared existing interval for Parking Model 3");
-            }
-            intervalId2 = setInterval(fetchParkingModel3, 20000);
-            console.log("[INFO] Started interval for Parking Model 3");
-        }
-        
-        
-        // Initialize
-        startFetchingParkingModel1();
-        startFetchingParkingModel2();
-        startFetchingParkingModel3()
+    <script>
+        let intervalId1 = null;
+let intervalId2 = null;
+let intervalId3 = null;  // Added this variable to manage the interval for Parking Model 3
+
+function fetchParkingModel1() {
+    console.log(`[INFO] Fetching Parking Model 1 at ${new Date().toLocaleTimeString()}`);
+    document.getElementById('parking_model_feed').src = "/parking_model/1?" + new Date().getTime();
+}
+
+function fetchParkingModel2() {
+    console.log(`[INFO] Fetching Parking Model 2 at ${new Date().toLocaleTimeString()}`);
+    document.getElementById('parking_model_feed2').src = "/parking_model2?" + new Date().getTime();
+}
+
+function fetchParkingModel3() {
+    console.log(`[INFO] Fetching Parking Model 3 at ${new Date().toLocaleTimeString()}`);
+    document.getElementById('parking_model_feed3').src = "/parking_model3?" + new Date().getTime();
+}
+
+function startFetchingParkingModel1() {
+    if (intervalId1) {
+        clearInterval(intervalId1);
+        console.log("[INFO] Cleared existing interval for Parking Model 1");
+    }
+    intervalId1 = setInterval(fetchParkingModel1, 20000);
+    console.log("[INFO] Started interval for Parking Model 1");
+}
+
+function startFetchingParkingModel2() {
+    if (intervalId2) {
+        clearInterval(intervalId2);
+        console.log("[INFO] Cleared existing interval for Parking Model 2");
+    }
+    intervalId2 = setInterval(fetchParkingModel2, 20000);
+    console.log("[INFO] Started interval for Parking Model 2");
+}
+
+function startFetchingParkingModel3() {
+    if (intervalId3) {  // Corrected: Clear intervalId3
+        clearInterval(intervalId3);
+        console.log("[INFO] Cleared existing interval for Parking Model 3");
+    }
+    intervalId3 = setInterval(fetchParkingModel3, 20000);  // Corrected: Use intervalId3 for Parking Model 3
+    console.log("[INFO] Started interval for Parking Model 3");
+}
+
+// Initialize
+startFetchingParkingModel1();
+startFetchingParkingModel2();
+startFetchingParkingModel3();
+
         </script>
     
 </body>

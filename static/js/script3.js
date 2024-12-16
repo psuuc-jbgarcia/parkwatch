@@ -99,20 +99,32 @@ $(document).ready(function() {
     $('#reportsModal').on('show.bs.modal', function () {
         $('#reportList').empty();
 
+        // Get selected start and end dates
+        let startDate = $('#startDate').val();
+        let endDate = $('#endDate').val();
+
+        // Fetch reports from the backend
         $.ajax({
             url: '/fetch_user_reports',
             method: 'GET',
             success: function(data) {
-                if (data.length > 0) {
-                    data.forEach(function(report) {
-                        // Check if image_url exists and render the image with a fixed max width and height
+                // Filter reports based on the selected date range
+                const filteredReports = data.filter(report => {
+                    const reportDate = new Date(report.timestamp);
+                    const start = startDate ? new Date(startDate) : new Date('1970-01-01');
+                    const end = endDate ? new Date(endDate) : new Date();
+                    return reportDate >= start && reportDate <= end;
+                });
+
+                // Display the filtered reports
+                if (filteredReports.length > 0) {
+                    filteredReports.forEach(function(report) {
                         let imageElement = report.image_url 
                             ? `<div class="col-3" style="max-width: 150px; max-height: 150px;">
                                 <img src="${report.image_url}" alt="Incident Image" class="img-fluid" style="max-width: 100%; max-height: 100%; object-fit: cover;">
                                </div>`
-                            : '';  // If no image URL, leave it empty
+                            : '';
 
-                        // Create the report item with Bootstrap grid layout (image on the left)
                         let reportItem = `<li class="list-group-item" style="background-color: #f8f9fa; border-radius: 8px; margin-bottom: 10px;">
                                             <div class="row">
                                                 ${imageElement}
@@ -126,119 +138,125 @@ $(document).ready(function() {
                         $('#reportList').append(reportItem);
                     });
                 } else {
-                    $('#reportList').append('<li class="list-group-item">No reports available</li>');
+                    $('#reportList').append('<li class="list-group-item">No reports available for the selected date range</li>');
                 }
             },
-            error: function(err) {
-                console.error("Error fetching reports:", err);
-                $('#reportList').append('<li class="list-group-item text-danger">Error fetching reports</li>');
+            error: function(error) {
+                console.log('Error fetching reports:', error);
             }
         });
     });
 });
 
-
+// Function to download PDF
 function downloadPDF() {
-    // Fetch reports from the Flask backend
-    fetch('/fetch_user_reports')
-        .then(response => response.json())
-        .then(data => {
-            // Check if the data is not empty
-            if (data.length > 0) {
-                // Create a new jsPDF instance
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
+    // Get selected start and end dates
+    let startDate = $('#startDate').val();
+    let endDate = $('#endDate').val();
 
-                // Set title style
-                doc.setFontSize(22);
-                doc.setFont("helvetica", "bold");
-                doc.setTextColor(0, 0, 0); // Black color
-                doc.text('PARKWATCH User Reports', 15, 20); // Title
-                doc.setFontSize(18);
-                doc.text(`Report Generated on: ${new Date().toLocaleString()}`, 15, 30);
+    // Fetch reports from the backend
+    $.ajax({
+        url: '/fetch_user_reports',
+        method: 'GET',
+        success: function(data) {
+            // Filter reports based on the selected date range
+            const filteredReports = data.filter(report => {
+                const reportDate = new Date(report.timestamp);
+                const start = startDate ? new Date(startDate) : new Date('1970-01-01');
+                const end = endDate ? new Date(endDate) : new Date();
+                return reportDate >= start && reportDate <= end;
+            });
 
-                // Prepare data for the table
-                const reportData = data.map(report => [
-                    report.name, 
-                    report.description, 
-                    report.timestamp
-                ]);
+            if (filteredReports.length > 0) {
+                // Create HTML content for the PDF
+                let reportHTML = `
+                    <h2>PARKWATCH User Reports</h2>
+                    <p>Generated on: ${new Date().toLocaleString()}</p>
+                    <p><strong>From:</strong> ${startDate ? new Date(startDate).toLocaleDateString() : 'Any Date'} 
+                       <strong>To:</strong> ${endDate ? new Date(endDate).toLocaleDateString() : 'Any Date'}</p>
+                    <table style="width: 100%; border: 1px solid #ccc; border-collapse: collapse;">
+                        <thead>
+                            <tr>
+                                <th style="border: 1px solid #ccc; padding: 8px;">Image</th>
+                                <th style="border: 1px solid #ccc; padding: 8px;">Name</th>
+                                <th style="border: 1px solid #ccc; padding: 8px;">Description</th>
+                                <th style="border: 1px solid #ccc; padding: 8px;">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
 
-                // Starting position for the table
-                let x = 15;
-                let y = 40;
-                const rowHeight = 10;
-                const columnWidth = [60, 80, 40];  // Define column widths
-
-                // Table Header
-                doc.setFontSize(12);
-                doc.setFont("helvetica", "bold");
-                doc.text('Name', x + 2, y + 7); // Slightly offset text for padding
-                doc.text('Description', x + columnWidth[0] + 2, y + 7);
-                doc.text('Timestamp', x + columnWidth[0] + columnWidth[1] + 2, y + 7);
-
-                // Draw table header border
-                doc.setDrawColor(0, 0, 0); // Black border
-                doc.rect(x, y, columnWidth[0], rowHeight); // Name column
-                doc.rect(x + columnWidth[0], y, columnWidth[1], rowHeight); // Description column
-                doc.rect(x + columnWidth[0] + columnWidth[1], y, columnWidth[2], rowHeight); // Timestamp column
-
-                y += rowHeight; // Move to the next row
-
-                // Table Body
-                doc.setFontSize(10);
-                doc.setFont("helvetica", "normal");
-                data.forEach(report => {
-                    // Add text to the table
-                    doc.text(report.name, x + 2, y + 7);
-                    doc.text(report.description, x + columnWidth[0] + 2, y + 7);
-                    doc.text(report.timestamp, x + columnWidth[0] + columnWidth[1] + 2, y + 7);
-
-                    // Draw borders for each row
-                    doc.rect(x, y, columnWidth[0], rowHeight); // Name column
-                    doc.rect(x + columnWidth[0], y, columnWidth[1], rowHeight); // Description column
-                    doc.rect(x + columnWidth[0] + columnWidth[1], y, columnWidth[2], rowHeight); // Timestamp column
-
-                    y += rowHeight; // Move to the next row
-
-                    // Check if the page is about to end
-                    if (y > 270) {
-                        doc.addPage();
-                        y = 20; // Reset y for new page
-
-                        // Redraw the table header on the new page
-                        doc.setFontSize(12);
-                        doc.setFont("helvetica", "bold");
-                        doc.text('Name', x + 2, y + 7);
-                        doc.text('Description', x + columnWidth[0] + 2, y + 7);
-                        doc.text('Timestamp', x + columnWidth[0] + columnWidth[1] + 2, y + 7);
-
-                        // Draw table header border
-                        doc.rect(x, y, columnWidth[0], rowHeight); // Name column
-                        doc.rect(x + columnWidth[0], y, columnWidth[1], rowHeight); // Description column
-                        doc.rect(x + columnWidth[0] + columnWidth[1], y, columnWidth[2], rowHeight); // Timestamp column
-
-                        y += rowHeight; // Move to the next row
+                filteredReports.forEach(report => {
+                    let imageElement = '';
+                    if (report.image_url) {
+                        imageElement = `<img src="${report.image_url}" alt="Incident Image" style="width: 100px; height: auto;">`;
+                    } else {
+                        imageElement = `<span>No image available</span>`;
                     }
+
+                    reportHTML += `
+                        <tr>
+                            <td style="border: 1px solid #ccc; padding: 8px;">
+                                ${imageElement}
+                            </td>
+                            <td style="border: 1px solid #ccc; padding: 8px;">${report.name}</td>
+                            <td style="border: 1px solid #ccc; padding: 8px;">${report.description}</td>
+                            <td style="border: 1px solid #ccc; padding: 8px;">${report.timestamp}</td>
+                        </tr>
+                    `;
                 });
 
-                // Save the generated PDF
-                doc.save('user_reports.pdf');
+                reportHTML += '</tbody></table>';
+
+                // Open a new window with the HTML content for printing
+                const printWindow = window.open('', '', 'width=800,height=600');
+                printWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>User Reports</title>
+                            <style>
+                                body { font-family: Arial, sans-serif; margin: 20px; }
+                                h2 { text-align: center; }
+                                table { width: 100%; border-collapse: collapse; }
+                                th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+                            </style>
+                        </head>
+                        <body>
+                            ${reportHTML}
+                        </body>
+                    </html>
+                `);
+
+                // Wait for all images to load before printing
+                const images = printWindow.document.querySelectorAll('img');
+                let loadedImagesCount = 0;
+
+                images.forEach((img) => {
+                    img.onload = () => {
+                        loadedImagesCount++;
+                        if (loadedImagesCount === images.length) {
+                            printWindow.document.close();
+                            printWindow.print(); // Open the print dialog to save as PDF
+                            setTimeout(() => printWindow.close(), 1000);
+                        }
+                    };
+                    img.onerror = () => printWindow.document.close();
+                });
+
+                if (images.length === 0) {
+                    printWindow.document.close();
+                    printWindow.print(); // Open the print dialog to save as PDF
+                    setTimeout(() => printWindow.close(), 1000);
+                }
             } else {
-                // If no reports are found
                 Swal.fire({
                     title: 'No Reports',
-                    text: 'No reports available to download.',
+                    text: 'No reports available for the selected date range.',
                     icon: 'warning',
                 });
             }
-        })
-        .catch(error => {
-            console.error("Error fetching reports:", error);
-            Swal.fire({
-                title: 'Error',
-                text: 'Failed to fetch reports for PDF generation.',
-                icon: 'error',
-            });
-        });
+        },
+        error: function(error) {
+            console.log('Error fetching reports:', error);
+        }
+    });
 }

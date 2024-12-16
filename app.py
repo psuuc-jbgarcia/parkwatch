@@ -15,7 +15,7 @@ import datetime
 import threading
 from camera_manager2 import load_camera_urls, parking_model2, save_camera_urls, get_video_source, generate_frames, add_camera, get_cameras,get_parking_info2
 from camera_manager3 import *
-
+from datetime import datetime
 from incident_manager import report_incident, save_full_parking_timestamp, fetch_comments, save_full_parking_timestamp2
 from flask import send_file,abort
 from report import generate_report,process_parking_data  # Import the generate_report function
@@ -682,28 +682,38 @@ def delete_camera(camera_id):
 def generate_report_route():
     parking_file_path = 'json_file/full_parking_timestamps.json'
     daily_report_file_path = 'json_file/daily_report.json'
-    
-    # Get the 'date' parameter from the request
-    date_str = request.args.get('date')
-    
-    if not date_str:
-        return jsonify({'error': 'Date parameter is missing'}), 400
-    
+
+    # Get the 'start_date' and 'end_date' parameters from the request
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    if not start_date or not end_date:
+        return jsonify({'error': 'Start date and end date parameters are required'}), 400
+
     try:
-        # Generate the report using the provided date and necessary file paths
-        report = generate_report(parking_file_path, daily_report_file_path, date_str)
-        
+        # Validate the date format (YYYY-MM-DD)
+        start_date_parsed = datetime.strptime(start_date, '%Y-%m-%d')
+        end_date_parsed = datetime.strptime(end_date, '%Y-%m-%d')
+
+        if start_date_parsed > end_date_parsed:
+            return jsonify({'error': 'Start date cannot be later than end date'}), 400
+
+        # Generate the report using the provided date range
+        report = generate_report(parking_file_path, daily_report_file_path, start_date, end_date)
+
         # Check if the report was generated successfully
         if report:
             return jsonify({'report': report})  # Return JSON response with the report
         else:
-            return jsonify({'error': 'Report generation failed. No data available for the given date.'}), 404
+            return jsonify({'error': 'Report generation failed. No data available for the given date range.'}), 404
 
+    except ValueError:
+        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD.'}), 400
     except Exception as e:
         # Log the error and return a detailed error response
         print(f"Error generating report: {e}")
         return jsonify({'error': f"An error occurred: {str(e)}"}), 500
-    ####################################################
+
 @app.route('/fetch_user_reports')
 def fetch_user_reports():
     db = firestore.client()

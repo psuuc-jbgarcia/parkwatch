@@ -3,70 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>License Plate Detection</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="">
-    <style>
-        body {
-            background-color: #f8f9fa;
+    <title>Download Report as PDF</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        function downloadPDF() {
+            // Fetch the report data from the backend (Firebase)
+            fetch('/fetch_user_reports')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        // Dynamically create the content for printing
+                        const contentDiv = document.createElement('div');
+                        contentDiv.style.display = 'none'; // Hide the content from the page
+                        document.body.appendChild(contentDiv);
+
+                        let htmlContent = `
+                            <h1 style="text-align:center;">PARKWATCH User Reports</h1>
+                            <p style="text-align:center;">Generated on: ${new Date().toLocaleString()}</p>
+                            <table border="1" style="width:100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr>
+                                        <th>Image</th>
+                                        <th>Name</th>
+                                        <th>Description</th>
+                                        <th>Timestamp</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        `;
+
+                        // Loop through the data and create table rows dynamically
+                        data.forEach(report => {
+                            htmlContent += `
+                                <tr>
+                                    <td><img src="${report.image_url}" width="50" height="50" /></td>
+                                    <td>${report.name}</td>
+                                    <td>${report.description}</td>
+                                    <td>${report.timestamp}</td>
+                                </tr>
+                            `;
+                        });
+
+                        htmlContent += `
+                                </tbody>
+                            </table>
+                        `;
+
+                        contentDiv.innerHTML = htmlContent;
+
+                        // Trigger the print dialog using window.print()
+                        window.print();
+
+                        // Optionally remove the content after printing
+                        setTimeout(() => {
+                            contentDiv.remove();
+                        }, 1000);
+                    }
+                });
         }
-        #video-container {
-            margin-bottom: 20px;
-        }
-    </style>
+    </script>
 </head>
 <body>
-    <div class="container">
-        <h1 class="my-4">License Plate Detection</h1>
-
-        <div id="video-container" class="text-center">
-            <img id="video-player" width="600" class="img-fluid" />
-        </div>
-
-        <h2>Detected License Plates</h2>
-        <ul id="plates-list" class="list-group"></ul>
-    </div>
-
-    <script>
-        const detectedPlates = new Set();  // Use a Set to keep unique plates
-
-        async function fetchPlates() {
-            const response = await fetch('/detected-plates');
-            const plates = await response.json();
-            const platesList = document.getElementById('plates-list');
-            platesList.innerHTML = '';  // Clear the existing list
-
-            // Add each plate to the Set and create list items
-            plates.forEach(plate => {
-                if (!detectedPlates.has(plate)) {
-                    detectedPlates.add(plate);
-                    const li = document.createElement('li');
-                    li.textContent = plate;
-                    li.className = 'list-group-item';  // Add Bootstrap class for styling
-                    platesList.appendChild(li);
-                }
-            });
-        }
-
-        // Fetch detected plates every 1 second
-        setInterval(fetchPlates, 1000);
-
-        // Function to update the video player with the streaming feed
-        function startVideoFeed() {
-            const videoPlayer = document.getElementById('video-player');
-            videoPlayer.src = "/video_feed"; // Set the source to your video feed route
-            videoPlayer.onload = () => {
-                videoPlayer.play();
-            };
-        }
-
-        startVideoFeed();
-    </script>
-
-    <!-- Bootstrap JS and dependencies (jQuery and Popper.js) -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <button onclick="downloadPDF()">Download Report as PDF</button>
 </body>
 </html>

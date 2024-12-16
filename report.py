@@ -42,13 +42,13 @@ def load_daily_report(file_path):
         print(f"Error loading daily report data: {e}")
         return []
 
-def fetch_detected_plates(date_str):
+def fetch_detected_plates(start_date, end_date):
     try:
-        print(f"Fetching data for date: {date_str}")
+        print(f"Fetching data for date range: {start_date} to {end_date}")
         detected_plates_ref = db.collection('detected_plates')  # Use db reference from firebase_config
 
-        # Filter based on arrival_time (assuming date_str represents the date portion)
-        query = detected_plates_ref.where('arrival_time', '>=', f"{date_str} 00:00:00").where('arrival_time', '<', f"{date_str} 23:59:59")
+        # Filter based on arrival_time
+        query = detected_plates_ref.where('arrival_time', '>=', f"{start_date} 00:00:00").where('arrival_time', '<=', f"{end_date} 23:59:59")
         results = query.stream()
 
         plate_info = []
@@ -60,40 +60,60 @@ def fetch_detected_plates(date_str):
                 'arrival_time': plate_data.get('arrival_time'),
                 'departure_time': plate_data.get('departure_time', 'N/A')
             })
-        
+
         if not plate_info:
             print("No plate data found.")
-        
+
         return plate_info
     except Exception as e:
         print(f"Error fetching detected plates data: {e}")
         return []
 
 # Main function to generate the report
-def generate_report(parking_file_path, daily_report_file_path, date_str):
+def generate_report(parking_file_path, daily_report_file_path, start_date, end_date):
     report = ""
+
+    # Ensure start_date and end_date are datetime objects
+    if isinstance(start_date, str):
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    if isinstance(end_date, str):
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
 
     # Load and filter parking timestamps
     try:
         timestamps = load_parking_data(parking_file_path)
-        filtered_timestamps = [ts for ts in timestamps if ts.date() == datetime.strptime(date_str, '%Y-%m-%d').date()]
+        filtered_timestamps = [
+            ts for ts in timestamps 
+            if start_date <= ts.date() <= end_date
+        ]
         total_full_events, hourly_counts, peak_hour, peak_count = process_parking_data(filtered_timestamps)
     except Exception as e:
         return f"Error processing parking data: {e}"
 
     # Load daily report data
-    daily_report_data = load_daily_report(daily_report_file_path)
-    daily_totals = next((item for item in daily_report_data if item['date'] == date_str), None)
+    try:
+        daily_report_data = load_daily_report(daily_report_file_path)
+        daily_totals = [
+            item for item in daily_report_data 
+            if start_date <= datetime.strptime(item['date'], '%Y-%m-%d').date() <= end_date
+        ]
+    except Exception as e:
+        return f"Error processing daily report data: {e}"
 
     # Fetch detected plates data from Firestore
-    detected_plates_data = fetch_detected_plates(date_str)
+    try:
+        detected_plates_data = fetch_detected_plates(start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
+    except Exception as e:
+        return f"Error fetching detected plates data: {e}"
 
     # Generate report content
     if daily_totals:
-        report += f"Total Parked Vehicles: {daily_totals['total_parked_vehicles']}\n"
-        report += f"Reserved Vehicles: {daily_totals['reserved_vehicles']}\n"
+        for daily_total in daily_totals:
+            report += f"Date: {daily_total['date']}\n"
+            report += f"Total Parked Vehicles: {daily_total['total_parked_vehicles']}\n"
+            report += f"Reserved Vehicles: {daily_total['reserved_vehicles']}\n\n"
     else:
-        report += "No data available for Total Parked and Reserved Vehicles.\n"
+        report += "No data available for Total Parked and Reserved Vehicles.\n\n"
 
     report += f"Total Parking Full Events: {total_full_events}, Peak Hour: {peak_hour} ({peak_count} times)\n\n"
 
@@ -103,6 +123,6 @@ def generate_report(parking_file_path, daily_report_file_path, date_str):
         for plate in detected_plates_data:
             report += f"Plate Number: {plate['plate_number']}, Arrival: {plate['arrival_time']}, Departure: {plate['departure_time']}\n"
     else:
-        report += "No arrival and departure data available for the specified date.\n"
+        report += "No arrival and departure data available for the specified date range.\n"
 
     return report

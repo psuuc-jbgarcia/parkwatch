@@ -72,9 +72,29 @@ fetchParkingData();
 setInterval(fetchParkingData, 1000);
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 function generateReport() {
-    const selectedDate = document.getElementById('report-date').value;
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
 
-    fetch(`/generate_report?date=${selectedDate}`)
+    // Validate the date inputs
+    if (!startDate || !endDate) {
+        Swal.fire({
+            title: 'Error',
+            text: 'Please select both start and end dates.',
+            icon: 'error',
+        });
+        return;
+    }
+
+    if (new Date(startDate) > new Date(endDate)) {
+        Swal.fire({
+            title: 'Error',
+            text: 'Start date cannot be later than end date.',
+            icon: 'error',
+        });
+        return;
+    }
+
+    fetch(`/generate_report?start_date=${startDate}&end_date=${endDate}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error('Failed to fetch the report from the server.');
@@ -99,14 +119,14 @@ function generateReport() {
                 doc.setTextColor(0, 102, 204);
                 doc.text('PARKWATCH', 15, 20);
                 doc.setFontSize(18);
-                doc.text(`Parking Report for ${selectedDate}`, 15, 30);
+                doc.text(`Parking Report: ${startDate} to ${endDate}`, 15, 30);
 
                 // Add a line below the title
                 doc.setDrawColor(0, 0, 0);
                 doc.line(15, 35, 195, 35);
 
                 // Split the report into lines
-                const reportLines = report.split('\n'); // <-- Initialize reportLines
+                const reportLines = report.split('\n');
                 const colX = [15, 60, 110, 195]; // Column positions
                 const colWidths = [45, 50, 85]; // Column widths
 
@@ -119,11 +139,9 @@ function generateReport() {
                 reportLines.forEach(line => {
                     if (line.trim()) {
                         if (line.startsWith('Total')) {
-                            // Summary information
                             doc.text(line, 15, y);
                             y += 10;
                         } else if (line.startsWith('Arrival and Departure Information:')) {
-                            // Add a section header
                             y += 5;
                             doc.setFont("helvetica", "bold");
                             doc.text(line, 15, y);
@@ -136,30 +154,26 @@ function generateReport() {
                             doc.text('Arrival', colX[1] + 2, y);
                             doc.text('Departure', colX[2] + 2, y);
 
-                            // Draw borders for the header row
                             doc.setDrawColor(0, 0, 0);
-                            doc.rect(colX[0], y - 5, colWidths[0], 10); // Plate Number column
-                            doc.rect(colX[1], y - 5, colWidths[1], 10); // Arrival column
-                            doc.rect(colX[2], y - 5, colWidths[2], 10); // Departure column
+                            doc.rect(colX[0], y - 5, colWidths[0], 10);
+                            doc.rect(colX[1], y - 5, colWidths[1], 10);
+                            doc.rect(colX[2], y - 5, colWidths[2], 10);
 
                             y += 10;
                         } else {
-                            // Extract data for Plate Number, Arrival, Departure
                             const parts = line.split(',').map(item => item.trim());
                             if (parts.length >= 2) {
                                 const plateInfo = parts[0].replace('Plate Number:', '').trim();
                                 const arrivalInfo = parts[1].replace('Arrival:', '').trim();
-                                let departureInfo = parts[2] ? parts[2].replace('Departure:', '').trim() : 'N/A';
+                                const departureInfo = parts[2] ? parts[2].replace('Departure:', '').trim() : 'N/A';
 
-                                // Display the data in columns
                                 doc.text(plateInfo, colX[0] + 2, y);
                                 doc.text(arrivalInfo, colX[1] + 2, y);
                                 doc.text(departureInfo, colX[2] + 2, y);
 
-                                // Draw borders for each row
-                                doc.rect(colX[0], y - 5, colWidths[0], 10); // Plate Number column
-                                doc.rect(colX[1], y - 5, colWidths[1], 10); // Arrival column
-                                doc.rect(colX[2], y - 5, colWidths[2], 10); // Departure column
+                                doc.rect(colX[0], y - 5, colWidths[0], 10);
+                                doc.rect(colX[1], y - 5, colWidths[1], 10);
+                                doc.rect(colX[2], y - 5, colWidths[2], 10);
 
                                 y += 10;
                             }
@@ -167,7 +181,6 @@ function generateReport() {
                     }
                 });
 
-                // Optional: Add page numbers
                 const pageCount = doc.internal.getNumberOfPages();
                 for (let i = 1; i <= pageCount; i++) {
                     doc.setPage(i);
@@ -175,11 +188,9 @@ function generateReport() {
                     doc.text(`Page ${i} of ${pageCount}`, 180, 290, { align: "right" });
                 }
 
-                // Save the PDF
-                doc.save(`Parking_Report_${selectedDate}.pdf`);
+                doc.save(`Parking_Report_${startDate}_to_${endDate}.pdf`);
             }
 
-            // Close the modal after generating the report
             $('#generateReportModal').modal('hide');
         })
         .catch(error => {
@@ -192,7 +203,6 @@ function generateReport() {
             });
         });
 }
-
 
 
 

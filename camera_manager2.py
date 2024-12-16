@@ -284,7 +284,7 @@ def parking_model2(video_source):
             break
         frame_bytes = buffer.tobytes()
         # Upload the frame to Firebase
-        time.sleep(10)
+        # time.sleep(10)
 
         upload_frame_to_firebase2(frame_bytes, 'parking_model2.jpg')  # Save as 'parking_frame.jpg' or use a dynamic name
         pos_list_serialized = pickle.dumps(posList)
