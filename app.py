@@ -35,6 +35,7 @@ DAILY_REPORT_FILE = 'json_file/daily_report.json'
 CAMERA_FILE_PATH = 'json_file/camera_urls.json'
 cameraIdCounter = 2  # Start camera ID from 2
 camera_urls_path = os.path.join(app.root_path, 'json_file/camera_urls.json')
+background_image_path = 'backimg.png'
 
 
 scheduler = BackgroundScheduler(timezone='Asia/Manila')
@@ -393,15 +394,18 @@ def upload_frame_to_firebase(frame_bytes, file_name):
     download_url = blob.public_url
     # print(f"Image uploaded and accessible at: {download_url}")
 
-def parking_model(video_source):
+def parking_model(video_source, background_image_path):
     last_time = time.time()
     frame_rate = 30  # Desired frame rate
-    
-    top_color = np.array([245, 245, 245], dtype=np.uint8)
-    bottom_color = np.array([230, 230, 230], dtype=np.uint8)
-    
+
     retries = 3  # Number of retry attempts
     retry_delay = 2  # Delay in seconds between retries
+
+    # Load and prepare the background image
+    background_image = cv2.imread(background_image_path)
+    if background_image is None:
+        print(f"Failed to load background image from {background_image_path}")
+        return
 
     while True:
         current_time = time.time()
@@ -425,16 +429,11 @@ def parking_model(video_source):
                     break
             if not success:
                 print("Failed to grab frame after retries, exiting...")
-                
+                return
 
+        # Resize background to match frame dimensions
         height, width, _ = frame.shape
-        gradient = np.zeros_like(frame, dtype=np.uint8)
-
-        # Create smooth gradient background
-        for y in range(height):
-            alpha = y / height
-            color = (1 - alpha) * top_color + alpha * bottom_color
-            gradient[y, :] = color
+        background_resized = cv2.resize(background_image, (width, height))
 
         # Convert to grayscale and apply processing
         imgGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -452,13 +451,14 @@ def parking_model(video_source):
         kernel = np.ones((3, 3), np.uint8)
         imgThres = cv2.dilate(imgThres, kernel, iterations=1)
 
-        checkSpaces(gradient, imgThres)  # Assuming this is a function to overlay detected spaces
+        checkSpaces(background_resized, imgThres)  # Assuming this is a function to overlay detected spaces
 
-        cv2.putText(gradient, "Parking Model", (15, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
-        cv2.rectangle(gradient, (0, 0), (width-1, height-1), (255, 255, 255), 3)
+        # Overlay text and frame border on the background
+        cv2.putText(background_resized, "Parking Model", (15, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
+        cv2.rectangle(background_resized, (0, 0), (width-1, height-1), (255, 255, 255), 3)
 
         # Encode the frame as JPEG
-        ret, buffer = cv2.imencode('.jpg', gradient)
+        ret, buffer = cv2.imencode('.jpg', background_resized)
         if not ret:
             print("Failed to encode frame")
             break
@@ -473,6 +473,7 @@ def parking_model(video_source):
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n' +
                b'Content-Type: application/octet-stream\r\n\r\n' + pos_list_serialized + b'\r\n')
+
 
 
 
@@ -512,9 +513,9 @@ def parking_model_route(camera_id):
     try:
         # Select the correct camera based on the camera_id
         if camera_id == 1:
-            return Response(parking_model(cap1_flutter), mimetype='multipart/x-mixed-replace; boundary=frame')
+            return Response(parking_model(cap1_flutter,background_image_path), mimetype='multipart/x-mixed-replace; boundary=frame')
         elif camera_id == 2:
-            return Response(parking_model(cap2_flutter), mimetype='multipart/x-mixed-replace; boundary=frame')
+            return Response(parking_model(cap2_flutter,background_image_path), mimetype='multipart/x-mixed-replace; boundary=frame')
         else:
             return "Invalid camera ID", 404
     except Exception as e:
@@ -598,7 +599,7 @@ def parking_info_route():
 def stream():
     video_source = get_video_source(2)
     source= cv2.VideoCapture(video_source,cv2.CAP_FFMPEG)
-    return Response(parking_model2(source),
+    return Response(parking_model2(source,background_image_path),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 ################################# camera 3
 
@@ -617,7 +618,7 @@ def video_feed_parking_space_3():
 def parking_model3_stream():
     video_source = get_video_source3(3)  # Check if this is valid and returns a usable source
     source = cv2.VideoCapture(video_source, cv2.CAP_FFMPEG)  # Ensure correct video source is passed
-    return Response(parking_model3(source),
+    return Response(parking_model3(source,background_image_path),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 def parking_model3_stream():

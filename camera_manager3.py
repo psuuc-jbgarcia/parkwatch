@@ -8,7 +8,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import time,datetime
 from firebase_admin import storage
-
+background_image_path = 'backimg.png'
 daily_total_parked_vehicles = 0
 daily_reserved_vehicles = 0
 CAMERA_FILE_PATH = 'json_file/camera_urls.json'
@@ -213,15 +213,18 @@ def upload_frame_to_firebase3(frame_bytes, file_name):
     download_url = blob.public_url
     # print(f"Image uploaded and accessible at: {download_url}")
 
-def parking_model3(video_source):
+def parking_model3(video_source, background_image_path):
     last_time = time.time()
     frame_rate = 30  # Desired frame rate
-    
-    top_color = np.array([245, 245, 245], dtype=np.uint8)
-    bottom_color = np.array([230, 230, 230], dtype=np.uint8)
-    
+
     retries = 3  # Number of retry attempts
     retry_delay = 2  # Delay in seconds between retries
+
+    # Load and prepare the background image
+    background_image = cv2.imread(background_image_path)
+    if background_image is None:
+        print(f"Failed to load background image from {background_image_path}")
+        return
 
     while True:
         current_time = time.time()
@@ -245,16 +248,11 @@ def parking_model3(video_source):
                     break
             if not success:
                 print("Failed to grab frame after retries, exiting...")
-                break
+                return
 
+        # Resize background to match frame dimensions
         height, width, _ = frame.shape
-        gradient = np.zeros_like(frame, dtype=np.uint8)
-
-        # Create smooth gradient background
-        for y in range(height):
-            alpha = y / height
-            color = (1 - alpha) * top_color + alpha * bottom_color
-            gradient[y, :] = color
+        background_resized = cv2.resize(background_image, (width, height))
 
         # Convert to grayscale and apply processing
         imgGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -272,13 +270,14 @@ def parking_model3(video_source):
         kernel = np.ones((3, 3), np.uint8)
         imgThres = cv2.dilate(imgThres, kernel, iterations=1)
 
-        check_spaces(gradient, imgThres)  # Assuming this is a function to overlay detected spaces
+        check_spaces(background_resized, imgThres)  # Assuming this is a function to overlay detected spaces
 
-        cv2.putText(gradient, "Parking Model", (15, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
-        cv2.rectangle(gradient, (0, 0), (width-1, height-1), (255, 255, 255), 3)
+        # Overlay text and frame border on the background
+        cv2.putText(background_resized, "Parking Model", (15, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
+        cv2.rectangle(background_resized, (0, 0), (width-1, height-1), (255, 255, 255), 3)
 
         # Encode the frame as JPEG
-        ret, buffer = cv2.imencode('.jpg', gradient)
+        ret, buffer = cv2.imencode('.jpg', background_resized)
         if not ret:
             print("Failed to encode frame")
             break
@@ -293,7 +292,6 @@ def parking_model3(video_source):
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n' +
                b'Content-Type: application/octet-stream\r\n\r\n' + pos_list_serialized + b'\r\n')
-
 
 
 def get_video_source3(camera_id):
