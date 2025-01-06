@@ -475,7 +475,107 @@ def parking_model(video_source, background_image_path):
                b'Content-Type: application/octet-stream\r\n\r\n' + pos_list_serialized + b'\r\n')
 
 
+# def parking_model(video_source, background_image_path):
+#     last_time = time.time()
+#     frame_rate = 30  # Desired frame rate
 
+#     retries = 3  # Number of retry attempts
+#     retry_delay = 2  # Delay in seconds between retries
+
+#     # Load and prepare the background image
+#     background_image = cv2.imread(background_image_path)
+#     if background_image is None:
+#         print(f"Failed to load background image from {background_image_path}")
+#         return
+
+#     while True:
+#         current_time = time.time()
+#         elapsed_time = current_time - last_time
+#         if elapsed_time < 1.0 / frame_rate:
+#             continue
+
+#         last_time = current_time
+
+#         success, frame = video_source.read()
+
+#         # Retry logic if frame is not successfully grabbed
+#         if not success:
+#             print("Failed to grab frame, retrying...")
+#             for attempt in range(retries):
+#                 print(f"Retrying... Attempt {attempt + 1}/{retries}")
+#                 time.sleep(retry_delay)  # Wait before retrying
+#                 success, frame = video_source.read()
+#                 if success:
+#                     print("Frame grabbed successfully")
+#                     break
+#             if not success:
+#                 print("Failed to grab frame after retries, exiting...")
+#                 return
+
+#         # Resize background to match frame dimensions
+#         height, width, _ = frame.shape
+#         background_resized = cv2.resize(background_image, (width, height))
+
+#         # Draw parking guidelines (semi-transparent rectangles)
+#         overlay = background_resized.copy()
+#         rectangle_color = (0, 255, 0)  # Green for parking spaces
+#         alpha = 0.5  # Transparency factor
+
+#         # Example parking spots
+#         parking_spots = [
+#             (50, 100, 150, 200),  # (x1, y1, x2, y2)
+#             (200, 100, 300, 200),
+#             (350, 100, 450, 200)
+#         ]
+
+#         for (x1, y1, x2, y2) in parking_spots:
+#             cv2.rectangle(overlay, (x1, y1), (x2, y2), rectangle_color, -1)
+
+#         # Blend the overlay with the original image
+#         cv2.addWeighted(overlay, alpha, background_resized, 1 - alpha, 0, background_resized)
+
+#         # Add instructions
+#         cv2.putText(background_resized, "Align your car within the green rectangles", 
+#                     (10, height - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
+
+#         # Convert to grayscale and apply processing
+#         imgGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+#         imgBlur = cv2.GaussianBlur(imgGray, (3, 3), 1)
+
+#         val1 = cv2.getTrackbarPos("Val1", "Vals")
+#         val2 = cv2.getTrackbarPos("Val2", "Vals")
+#         val3 = cv2.getTrackbarPos("Val3", "Vals")
+
+#         if val1 % 2 == 0: val1 += 1
+#         if val3 % 2 == 0: val3 += 1
+
+#         imgThres = cv2.adaptiveThreshold(imgBlur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, val1, val2)
+#         imgThres = cv2.medianBlur(imgThres, val3)
+#         kernel = np.ones((3, 3), np.uint8)
+#         imgThres = cv2.dilate(imgThres, kernel, iterations=1)
+
+#         checkSpaces(background_resized, imgThres)  # Assuming this is a function to overlay detected spaces
+
+#         # Overlay text and frame border on the background
+#         cv2.putText(background_resized, "Parking Model", (15, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
+#         cv2.rectangle(background_resized, (0, 0), (width-1, height-1), (255, 255, 255), 3)
+
+#         # Encode the frame as JPEG
+#         ret, buffer = cv2.imencode('.jpg', background_resized)
+#         if not ret:
+#             print("Failed to encode frame")
+#             break
+#         frame_bytes = buffer.tobytes()
+
+#         # Upload the frame to Firebase
+#         time.sleep(10)
+#         upload_frame_to_firebase(frame_bytes, 'parking_model1.jpg')  # Save as 'parking_frame.jpg' or use a dynamic name
+#         pos_list_serialized = pickle.dumps(posList)
+
+#         # Yield the frame and serialized data for streaming
+#         yield (b'--frame\r\n'
+#                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n' +
+#                b'Content-Type: application/octet-stream\r\n\r\n' + pos_list_serialized + b'\r\n')
 
 @app.route('/')
 def index():
